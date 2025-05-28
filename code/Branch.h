@@ -26,6 +26,7 @@ class Branch : public Printable{
         Branch(int branchIndex, int parentBranchIndex, float initialAngle, float initialLength, float initialWidth, 
         float xPos, float yPos);
         Branch();
+        virtual ~Branch();
 
         // Lifecycle methods
         bool getIsAlive() const { return isAlive; } ///< Checks if the branch is currently alive.

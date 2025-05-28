@@ -35,6 +35,10 @@ Branch::Branch(int branchIndex, int parentBranchIndex, float initialAngle, float
 // default const for branch
 Branch::Branch() : Branch(-1, -1, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f) {
 };
+
+Branch::~Branch() {
+    // Empty destructor - resources are managed by members (e.g., std::vector, RotatedRect)
+}
 float Branch::getAngle(){
     return branchRect.angle;
 }
@@ -278,6 +282,23 @@ bool Branch::containsMouse(int mouseX, int mouseY){
     return newRect.contains(Point(rotatedX, rotatedY));
 }
 
+void Branch::printData(){
+    cout << "Branch object" << endl;
+    cout << "Index: " << index << endl;
+    cout << "Parent index: " << parentIndex << endl;
+    cout << "Age: " << age << endl;
+    cout << "Is alive: " << (isAlive ? "Yes" : "No") << endl;
+    cout << "Turns without water: " << turnsWithoutWater << endl;
+    cout << "Turns without nutrients: " << turnsWithoutNutrients << endl;
+    cout << "Position: (" << branchRect.center.x << ", " << branchRect.center.y << ")" << endl;
+    cout << "Size: (Width: " << branchRect.size.width << ", Height: " << branchRect.size.height << ")" << endl;
+    cout << "Angle: " << branchRect.angle << endl;
+    cout << "Child indices: ";
+    for(int i = 0; i < childIndices.size(); i++){
+        cout << childIndices[i] << " ";
+    }
+    cout << endl;
+}
 
 // --------------------------- Saving and loading system (text file)
 void Branch::saveToStream(std::ostream& out) const {
