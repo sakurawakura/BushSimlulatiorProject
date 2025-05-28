@@ -63,35 +63,24 @@ void Player::saveToStream(std::ostream& out) const {
 }
 
 Player Player::loadFromStream(std::istream& in) {
-    std::string keyword;
+    std::string keyword_w, keyword_f;
     float water = 0.0f;
     float fertiliser = 0.0f;
 
-    // Read water
-    if (in >> keyword && keyword == "water") {
-        in >> water;
-    } else {
-        // Handle error or assume default: could throw, or log, or set to default
-        std::cerr << "Error: Expected 'water' keyword in save file for Player." << std::endl;
-        // Or set default, or throw exception
-        // For robustness against totally empty/corrupt file, check stream state:
-        if (!in) {
-             std::cerr << "Error: Stream error while reading Player data." << std::endl;
-             return Player(0.0f, 0.0f); // Return default player
-        }
+    in >> keyword_w >> water >> keyword_f >> fertiliser;
+
+    if (in.fail() || keyword_w != "water" || keyword_f != "fertiliser") {
+        // It's good to consume the rest of the line if there was an error,
+        // to help the next load operation if this is part of a larger file stream.
+        // However, for Player, it's typically at the start of its own section or file part.
+        // For now, just a simple error message.
+        // A more robust approach for partial reads might clear stream errors and ignore rest of line:
+        // in.clear(); 
+        // in.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+        std::cerr << "Error: Failed to load Player data. Using default." << std::endl;
+        return Player(0.0f, 0.0f); // Return default player
     }
 
-    // Read fertiliser
-    if (in >> keyword && keyword == "fertiliser") {
-        in >> fertiliser;
-    } else {
-        // Handle error or assume default
-        std::cerr << "Error: Expected 'fertiliser' keyword in save file for Player." << std::endl;
-        if (!in && keyword != "fertiliser") { // Check if stream failed before reading value or if keyword was just wrong
-             std::cerr << "Error: Stream error while reading Player data or wrong keyword." << std::endl;
-             // Keep previously read water value, fertiliser remains 0.0f or could be set to a default
-        }
-    }
     return Player(water, fertiliser);
 }
 

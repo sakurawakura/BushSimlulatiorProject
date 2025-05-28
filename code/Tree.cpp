@@ -496,123 +496,114 @@ void Tree::saveToStream(std::ostream& out) const {
 }
 
 Tree* Tree::loadFromStream(std::istream& in, int windowWidth, int windowHeight) {
-    std::string keyword;
+    std::string k_max_idx, k_water, k_nutrient, k_num_branches;
     int p_maxIndex = 0;
     float p_waterLevel = 0.0f;
     float p_nutrientLevel = 0.0f;
     int p_num_branches = 0;
 
     // Read tree properties
-    if (!(in >> keyword >> p_maxIndex) || keyword != "tree_max_index") { 
-        std::cerr << "Error: Failed to read tree_max_index or keyword mismatch." << std::endl;
-        return nullptr; 
-    }
-    if (!(in >> keyword >> p_waterLevel) || keyword != "tree_water_level") { 
-        std::cerr << "Error: Failed to read tree_water_level or keyword mismatch." << std::endl;
-        return nullptr; 
-    }
-    if (!(in >> keyword >> p_nutrientLevel) || keyword != "tree_nutrient_level") { 
-        std::cerr << "Error: Failed to read tree_nutrient_level or keyword mismatch." << std::endl;
-        return nullptr; 
-    }
-    if (!(in >> keyword >> p_num_branches) || keyword != "num_branches") { 
-        std::cerr << "Error: Failed to read num_branches or keyword mismatch." << std::endl;
-        return nullptr; 
+    in >> k_max_idx >> p_maxIndex
+       >> k_water >> p_waterLevel
+       >> k_nutrient >> p_nutrientLevel
+       >> k_num_branches >> p_num_branches;
+
+    if (in.fail() || k_max_idx != "tree_max_index" || k_water != "tree_water_level" ||
+        k_nutrient != "tree_nutrient_level" || k_num_branches != "num_branches") {
+        std::cerr << "Error: Failed to load Tree properties. Cannot load tree." << std::endl;
+        return nullptr;
     }
 
     // Consume the rest of the line after num_branches
     std::string dummy_line;
-    std::getline(in, dummy_line); 
+    std::getline(in, dummy_line);
 
     std::vector<Branch*> loadedBranches;
     loadedBranches.reserve(p_num_branches);
 
     for (int i = 0; i < p_num_branches; ++i) {
         Branch loadedBranch = Branch::loadFromStream(in); // Assumes Branch::loadFromStream reads one line
-        if (in.fail() || loadedBranch.getIndex() == -1) { 
+        if (loadedBranch.getIndex() == -1) { // Branch::loadFromStream returns default branch with index -1 on failure
             std::cerr << "Error loading branch " << i << " from stream." << std::endl;
             for (Branch* b : loadedBranches) delete b; // Cleanup already loaded branches
             return nullptr;
         }
-        loadedBranches.push_back(new Branch(loadedBranch)); 
+        loadedBranches.push_back(new Branch(loadedBranch));
     }
 
     if (loadedBranches.empty() && p_num_branches > 0) {
          std::cerr << "Error: No branches loaded despite num_branches (" << p_num_branches << ") > 0." << std::endl;
          return nullptr;
     }
-    
+
     Tree* loadedTree = nullptr;
     if (!loadedBranches.empty()) {
-        // The first branch in the file is assumed to be the trunk.
-        // The Tree constructor requires a trunk. It will also add this trunk to its own branchList.
-        Branch* trunk = new Branch(*loadedBranches[0]); // Create a copy for the constructor
-        
-        loadedTree = new Tree(p_waterLevel, p_nutrientLevel, trunk); // trunk is now owned by loadedTree
-
-        // The Tree constructor created a branchList containing a copy of the trunk.
-        // We need to replace this with our fully loaded branchList.
-        delete loadedTree->branchList[0]; // Delete the trunk copy made by the constructor
-        loadedTree->branchList.clear();   // Clear the list
-
-        // Transfer ownership of all loaded branches to the tree.
+        Branch* trunk = new Branch(*loadedBranches[0]);
+        loadedTree = new Tree(p_waterLevel, p_nutrientLevel, trunk);
+        delete loadedTree->branchList[0];
+        loadedTree->branchList.clear();
         for (Branch* b_ptr : loadedBranches) {
             loadedTree->branchList.push_back(b_ptr);
         }
-        // loadedBranches vector itself will be destroyed, but the Branch objects are now owned by loadedTree.
-
-    } else { // p_num_branches was 0 or loading failed to get any branches
+    } else {
          std::cout << "No branches in save file or failed to load branches. Creating default tree." << std::endl;
-         Branch* defaultTrunk = new Branch(0, -1, 0.0f, 50.0f, 10.0f,  windowWidth/ 2.0f, (float)windowHeight); 
-         loadedTree = new Tree(p_waterLevel, p_nutrientLevel, defaultTrunk); // Use water/nutrient from file, or defaults if file was minimal
+         Branch* defaultTrunk = new Branch(0, -1, 0.0f, 50.0f, 10.0f,  windowWidth/ 2.0f, (float)windowHeight);
+         loadedTree = new Tree(p_waterLevel, p_nutrientLevel, defaultTrunk);
     }
-    
+
     loadedTree->maxIndex = p_maxIndex;
 
-    std::string keyword_fruit; 
-    // Load next_fruit_id
-    if (!(in >> keyword_fruit >> loadedTree->nextFruitId) || keyword_fruit != "next_fruit_id") {
-        std::cerr << "Error: Failed to read next_fruit_id or keyword mismatch. Defaulting to 0." << std::endl;
-        loadedTree->nextFruitId = 0; 
-    }
-    
+    // Fruit Data Reading
+    std::string k_next_fruit_id, k_num_fruits;
+    int temp_next_fruit_id = 0; // Use temporary for reading
     int num_fruits = 0;
-    if (!(in >> keyword_fruit >> num_fruits) || keyword_fruit != "num_fruits") {
-        std::cerr << "Error: Failed to read num_fruits or keyword mismatch. Defaulting to 0 fruits." << std::endl;
-        num_fruits = 0; 
-    }
 
-    loadedTree->fruitsList.clear();
-    loadedTree->fruitsList.reserve(num_fruits);
-    for (int i = 0; i < num_fruits; ++i) {
-        Fruit tempFruit;
-        int fruit_type_int;
-        bool fruit_collected_bool; // To read integer 0 or 1
+    in >> k_next_fruit_id >> temp_next_fruit_id >> k_num_fruits >> num_fruits;
 
-        if (!(in >> keyword_fruit) || keyword_fruit != "fruit") { std::cerr << "Error: Expected 'fruit' keyword for fruit " << i << std::endl; break; }
-        if (!(in >> keyword_fruit >> tempFruit.id) || keyword_fruit != "id") { std::cerr << "Error: Bad 'id' for fruit " << i << std::endl; break; }
-        if (!(in >> keyword_fruit >> tempFruit.parentBranchIndex) || keyword_fruit != "parent_branch_idx") { std::cerr << "Error: Bad 'parent_branch_idx' for fruit " << i << std::endl; break; }
-        if (!(in >> keyword_fruit >> fruit_type_int) || keyword_fruit != "type") { std::cerr << "Error: Bad 'type' for fruit " << i << std::endl; break; }
-        tempFruit.type = static_cast<FruitType>(fruit_type_int);
-        if (!(in >> keyword_fruit >> tempFruit.position.x) || keyword_fruit != "pos_x") { std::cerr << "Error: Bad 'pos_x' for fruit " << i << std::endl; break; }
-        if (!(in >> keyword_fruit >> tempFruit.position.y) || keyword_fruit != "pos_y") { std::cerr << "Error: Bad 'pos_y' for fruit " << i << std::endl; break; }
-        if (!(in >> keyword_fruit >> tempFruit.radius) || keyword_fruit != "radius") { std::cerr << "Error: Bad 'radius' for fruit " << i << std::endl; break; }
-        if (!(in >> keyword_fruit >> tempFruit.color[0]) || keyword_fruit != "color_b") { std::cerr << "Error: Bad 'color_b' for fruit " << i << std::endl; break; }
-        if (!(in >> keyword_fruit >> tempFruit.color[1]) || keyword_fruit != "color_g") { std::cerr << "Error: Bad 'color_g' for fruit " << i << std::endl; break; }
-        if (!(in >> keyword_fruit >> tempFruit.color[2]) || keyword_fruit != "color_r") { std::cerr << "Error: Bad 'color_r' for fruit " << i << std::endl; break; }
-        if (!(in >> keyword_fruit >> fruit_collected_bool) || keyword_fruit != "collected") { std::cerr << "Error: Bad 'collected' for fruit " << i << std::endl; break; }
-        tempFruit.collected = fruit_collected_bool;
-        
-        loadedTree->fruitsList.push_back(tempFruit);
-    }
+    if (in.fail() || k_next_fruit_id != "next_fruit_id" || k_num_fruits != "num_fruits") {
+        std::cerr << "Error: Failed to load fruit metadata. Fruits will not be loaded." << std::endl;
+        // Proceed without loading fruits, nextFruitId remains its default, fruitsList is empty.
+    } else {
+        loadedTree->nextFruitId = temp_next_fruit_id; // Assign if read successfully
+        loadedTree->fruitsList.clear();
+        loadedTree->fruitsList.reserve(num_fruits);
 
-    if (in.fail() && !in.eof()) { 
-       std::cerr << "Error reading fruits data stream section." << std::endl;
-       // Depending on desired robustness, might clear fruitsList or flag error
+        for (int i = 0; i < num_fruits; ++i) {
+            Fruit tempFruit;
+            int fruit_type_int;
+            bool fruit_collected_bool;
+            std::string k_fruit, k_id, k_parent_idx, k_type, k_pos_x, k_pos_y, k_radius, k_col_b, k_col_g, k_col_r, k_collected;
+
+            in >> k_fruit
+               >> k_id >> tempFruit.id
+               >> k_parent_idx >> tempFruit.parentBranchIndex
+               >> k_type >> fruit_type_int
+               >> k_pos_x >> tempFruit.position.x
+               >> k_pos_y >> tempFruit.position.y
+               >> k_radius >> tempFruit.radius
+               >> k_col_b >> tempFruit.color[0]
+               >> k_col_g >> tempFruit.color[1]
+               >> k_col_r >> tempFruit.color[2]
+               >> k_collected >> fruit_collected_bool;
+            
+            if (in.fail() || k_fruit != "fruit" || k_id != "id" || k_parent_idx != "parent_branch_idx" ||
+                k_type != "type" || k_pos_x != "pos_x" || k_pos_y != "pos_y" || k_radius != "radius" ||
+                k_col_b != "color_b" || k_col_g != "color_g" || k_col_r != "color_r" || k_collected != "collected") {
+                std::cerr << "Error: Failed to load one fruit. Skipping it." << std::endl;
+                // Consume the rest of the potentially malformed line for this fruit
+                std::string bad_fruit_line;
+                std::getline(in, bad_fruit_line);
+                in.clear(); // Clear error flags to allow further reading for next fruits
+                continue; 
+            }
+            tempFruit.type = static_cast<FruitType>(fruit_type_int);
+            tempFruit.collected = fruit_collected_bool;
+            loadedTree->fruitsList.push_back(tempFruit);
+        }
     }
     
-    loadedTree->updateMaxConstraints(); 
-    loadedTree->updateBranchPos(); 
+    loadedTree->updateMaxConstraints();
+    loadedTree->updateBranchPos();
 
     return loadedTree;
 }

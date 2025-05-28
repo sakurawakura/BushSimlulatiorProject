@@ -326,118 +326,87 @@ void Branch::saveToStream(std::ostream& out) const {
 
 //error handling first
 Branch Branch::loadFromStream(std::istream& in) {
-    std::string line; // line by line
+    std::string line;
     if (!std::getline(in, line)) {
-        std::cerr << "Cant read line for Branch" << std::endl;
+        std::cerr << "Error: Could not read line for Branch." << std::endl;
         return Branch(); // Return default/invalid branch
     }
 
-    std::istringstream iss(line); //string stream to parse line
-    std::string keyword;
-
-    int p_idx = -1, p_parent_index = -1, p_age = 0; // values for age and indices
-    float p_cx = 0.f, p_cy = 0.f, p_w = 0.f, p_h = 0.f, p_angle = 0.f; // values for branch rectangle
-    int p_num_children = 0; //number of children on bush
+    std::istringstream iss(line);
+    std::string K_BRANCH, K_INDEX, K_PARENT_INDEX, K_AGE, K_CENTER_X, K_CENTER_Y, K_WIDTH, K_HEIGHT, K_ANGLE, K_NUM_CHILDREN, K_TURNS_WATER, K_TURNS_NUTRIENTS, K_IS_ALIVE;
+    
+    int p_idx = -1, p_parent_index = -1, p_age = 0, p_num_children = 0, p_turns_water = 0, p_turns_nutrients = 0;
+    float p_cx = 0.f, p_cy = 0.f, p_w = 0.f, p_h = 0.f, p_angle = 0.f;
+    bool p_is_alive = false;
     std::vector<int> p_childIndices;
 
-    iss >> keyword; // "branch" 
-    if (keyword != "branch") { 
-        std::cerr << "Error: not valid file " << keyword << std::endl; //error
-        return Branch(); 
+    iss >> K_BRANCH; // Read "branch" keyword
+
+    if (K_BRANCH != "branch") {
+        std::cerr << "Error: Failed to parse Branch data line. Using default." << std::endl;
+        return Branch();
     }
 
-    // reading based on defined keywodsd (CHATGPT) errors
-    iss >> keyword >> p_idx;             // index
-    if (keyword != "index") { std::cerr << "Error expected 'index', got " << keyword << " for branch " << p_idx << std::endl; return Branch(); }
-    
-    iss >> keyword >> p_parent_index;    // parent_index
-    if (keyword != "parent_index") { std::cerr << "Error expected 'parent_index', got " << keyword << " for branch " << p_idx << std::endl; return Branch(); }
-    
-    iss >> keyword >> p_age;             // age
-    if (keyword != "age") { std::cerr << "Error expected 'age', got " << keyword << " for branch " << p_idx << std::endl; return Branch(); }
+    // Read all fields sequentially
+    iss >> K_INDEX >> p_idx
+        >> K_PARENT_INDEX >> p_parent_index
+        >> K_AGE >> p_age
+        >> K_CENTER_X >> p_cx 
+        >> K_CENTER_Y >> p_cy 
+        >> K_WIDTH >> p_w 
+        >> K_HEIGHT >> p_h 
+        >> K_ANGLE >> p_angle
+        >> K_NUM_CHILDREN >> p_num_children;
 
-    iss >> keyword >> p_cx;              // center_x
-    if (keyword != "center_x") { std::cerr << "Error expected'center_x', got " << keyword << " for branch " << p_idx << std::endl; return Branch(); }
-
-    iss >> keyword >> p_cy;              // center_y
-    if (keyword != "center_y") { std::cerr << "Error expected'center_y', got " << keyword << " for branch " << p_idx << std::endl; return Branch(); }
-
-    iss >> keyword >> p_w;               // width
-    if (keyword != "width") { std::cerr << "Error expected 'width', got " << keyword << " for branch " << p_idx << std::endl; return Branch(); }
-    
-    iss >> keyword >> p_h;               // height
-    if (keyword != "height") { std::cerr << "Error expected 'height', got " << keyword << " for branch " << p_idx << std::endl; return Branch(); }
-    
-    iss >> keyword >> p_angle;           // angle
-    if (keyword != "angle") { std::cerr << "Error expected 'angle', got " << keyword << " for branch " << p_idx << std::endl; return Branch(); }
-
-    iss >> keyword >> p_num_children;    // num_children
-    if (keyword != "num_children") { std::cerr << "Error expected 'num_children', got " << keyword << " for branch " << p_idx << std::endl; return Branch(); }
-
-    //resising vector for child indices
     p_childIndices.resize(p_num_children);
     for (int i = 0; i < p_num_children; ++i) {
-        if (!(iss >> p_childIndices[i])) {
-            std::cerr << "error cant read child index" << i << " for branch " << p_idx << std::endl;
-            return Branch(); // default valiue retured
-        }
-    }
-    
-    // Check for any errors
-    if (iss.fail() && !iss.eof()) { // eof because we are reading everything
-         std::cerr << "error for branch data " << p_idx << ". details: " << iss.rdstate() << std::endl;
-         return Branch(); // rreturn default
+        iss >> p_childIndices[i];
     }
 
-// inputtings the read values into the branchs
-    float angle_rad = p_angle * (M_PI / 180.0f);
-    float calculated_base_x = p_cx - (0.5f * p_h * std::sin(angle_rad));
-    float calculated_base_y = p_cy + (0.5f * p_h * std::cos(angle_rad));
+    // Continue reading sustenance data directly
+    iss >> K_TURNS_WATER >> p_turns_water
+        >> K_TURNS_NUTRIENTS >> p_turns_nutrients
+        >> K_IS_ALIVE >> p_is_alive;
 
-    Branch loadedBranch(p_idx, p_parent_index, p_angle, p_h, p_w, calculated_base_x, calculated_base_y); //load the branch
+    // Final check after all reads from iss
+    if (iss.fail() || 
+        K_INDEX != "index" || K_PARENT_INDEX != "parent_index" || K_AGE != "age" ||
+        K_CENTER_X != "center_x" || K_CENTER_Y != "center_y" || K_WIDTH != "width" || K_HEIGHT != "height" || K_ANGLE != "angle" ||
+        K_NUM_CHILDREN != "num_children" || K_TURNS_WATER != "turns_water" || K_TURNS_NUTRIENTS != "turns_nutrients" || K_IS_ALIVE != "is_alive") {
+        std::cerr << "Error: Failed to parse Branch data line. Using default." << std::endl;
+        return Branch();
+    }
+
+    // Constructing the branch:
+    // The Branch constructor takes initial position (base of branch), angle, length, width.
+    // We have center_x, center_y, width, height, angle from file.
+    // We need to calculate base_x, base_y for the constructor.
+    // Base position calculation (inverse of how center is calculated in constructor from base):
+    // float xPos = initialXPos+0.5*initialLength*sin(initialAngle * (M_PI / 180));
+    // float yPos = initialYPos-0.5*initialLength*cos(initialAngle * (M_PI / 180));
+    // So: initialXPos = xPos - 0.5*initialLength*sin(initialAngle * (M_PI / 180))
+    //     initialYPos = yPos + 0.5*initialLength*cos(initialAngle * (M_PI / 180))
     
-    // restore saved age
+    float angle_rad_load = p_angle * (M_PI / 180.0f);
+    float calculated_base_x = p_cx - (0.5f * p_h * std::sin(angle_rad_load));
+    float calculated_base_y = p_cy + (0.5f * p_h * std::cos(angle_rad_load));
+
+    Branch loadedBranch(p_idx, p_parent_index, p_angle, p_h, p_w, calculated_base_x, calculated_base_y);
+    
     loadedBranch.age = p_age; 
-    loadedBranch.childIndices = p_childIndices;
-
-    // loading for data water and fertiliser
-
-    long original_pos_sustenance = iss.tellg(); // Save position before attempting to read new fields.
-    std::string keyword_sustenance_check;
-
-    if (iss >> keyword_sustenance_check && keyword_sustenance_check == "turns_water") {
-        iss >> loadedBranch.turnsWithoutWater;
-        if (!(iss >> keyword_sustenance_check && keyword_sustenance_check == "turns_nutrients")) {
-            std::cerr << "Parse Error: Branch " << loadedBranch.index << " expected 'turns_nutrients' after 'turns_water'. Defaulting sustenance state." << std::endl;
-            iss.clear(); iss.seekg(original_pos_sustenance); // Reset to before "turns_water" attempt.
-            loadedBranch.turnsWithoutWater = 0; loadedBranch.turnsWithoutNutrients = 0; loadedBranch.isAlive = true;
-        } else {
-            iss >> loadedBranch.turnsWithoutNutrients;
-            if (!(iss >> keyword_sustenance_check && keyword_sustenance_check == "is_alive")) {
-                std::cerr << "Parse Error: Branch " << loadedBranch.index << " expected 'is_alive' after 'turns_nutrients'. Defaulting sustenance state." << std::endl;
-                iss.clear(); iss.seekg(original_pos_sustenance); 
-                loadedBranch.turnsWithoutWater = 0; loadedBranch.turnsWithoutNutrients = 0; loadedBranch.isAlive = true;
-            } else {
-                iss >> loadedBranch.isAlive;
-                 // If loaded as dead, ensure leaf state is consistent.
-                if (!loadedBranch.isAlive) {
-                    // loadedBranch.hasLeaves and loadedBranch.leafPositions are removed
-                }
-            }
-        }
-    } else {
-        // Keyword "turns_water" not found, assume old save file format for this section.
-        iss.clear(); // Clear any fail bits from the attempted read.
-        iss.seekg(original_pos_sustenance); // Reset stream position to before this block.
-        loadedBranch.turnsWithoutWater = 0;     // Default for old saves.
-        loadedBranch.turnsWithoutNutrients = 0; // Default for old saves.
-        loadedBranch.isAlive = true;            // Default for old saves.
-    }
-
-    // Check for any stream errors after trying to read all parts
-    if (iss.fail() && !iss.eof()) { // eof is fine if we read everything
-         std::cerr << "Error reading branch data for index " << p_idx << ". Stream state: " << iss.rdstate() << std::endl;
-    }
+    loadedBranch.childIndices = p_childIndices; // Assign child indices
+    loadedBranch.turnsWithoutWater = p_turns_water;
+    loadedBranch.turnsWithoutNutrients = p_turns_nutrients;
+    loadedBranch.isAlive = p_is_alive;
+    
+    // The RotatedRect in loadedBranch is already set by its constructor based on base_x, base_y, angle, width, height.
+    // We need to ensure its center matches p_cx, p_cy if the constructor logic for center calculation is complex.
+    // Given the constructor takes base position, the loaded p_cx, p_cy were for the *center*.
+    // The current Branch constructor calculates the center from the base.
+    // So, providing the calculated_base_x, calculated_base_y should correctly set up the branchRect.
+    // Let's verify branchRect's center after construction.
+    // (Optional: add a check here if branchRect.center.x is close to p_cx and branchRect.center.y is close to p_cy)
+    // For now, assume the constructor correctly sets the branchRect based on the provided base coordinates.
 
     return loadedBranch;
 }
