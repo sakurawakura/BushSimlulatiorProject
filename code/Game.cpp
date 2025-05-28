@@ -112,7 +112,7 @@ Game::~Game(){
     delete gamePlayer;
     delete gameTimeline;
     delete saveGameButton; 
-    delete loadGameButton; /
+    delete loadGameButton; 
     if (berriesMenuButton) {
         delete berriesMenuButton;
         berriesMenuButton = nullptr; 
@@ -300,7 +300,7 @@ void Game::drawScreen(){
             cv::Scalar infoColor = cv::Scalar(0,0,0); 
 
             int startY = titleOrg.y + titleTextSize.height + 50; 
-            int lineHeight = 35; /
+            int lineHeight = 35; 
 
             // Centering text lines,
             std::vector<std::string> berryInfoTexts = {
