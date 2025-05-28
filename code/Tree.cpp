@@ -55,10 +55,6 @@ float Tree::addWater(float litres){
     float amountActuallyAdded = std::min(litres, availableCapacity);
     
     waterLevel += amountActuallyAdded;
-    // Ensure waterLevel does not exceed maxWater due to potential floating point inaccuracies if very close.
-    // However, std::min should prevent this if availableCapacity is calculated correctly.
-    // For safety, one might clamp: waterLevel = std::min(waterLevel, maxWater);
-    // But let's keep it simple as per the request.
 
     return amountActuallyAdded;
 }
@@ -93,17 +89,6 @@ void Tree::addBranches(vector<Branch*> newBranches){
     updateMaxConstraints();
 }
 
-/**
- * @brief Simulates the growth of the tree for one turn.
- * This includes managing branch sustenance (incrementing neglect counters, checking for death),
- * calculating overall growth based on available resources, applying growth to each branch,
- * potentially spawning new branches, and spawning fruits.
- * @param waterConsumed Output parameter: amount of water consumed by the tree this turn.
- * @param nutrientsConsumed Output parameter: amount of nutrients consumed by the tree this turn.
- * @param widthIncreases Output parameter: list of width increases for each branch.
- * @param lengthIncreases Output parameter: list of length increases for each branch.
- * @param branchesGrown Output parameter: list of indices for newly grown branches.
- */
 void Tree::grow(float &waterConsumed, float &nutrientsConsumed, 
     vector<float> &widthIncreases, vector<float> &lengthIncreases, vector<int> &branchesGrown){
 
@@ -215,18 +200,12 @@ void Tree::grow(float &waterConsumed, float &nutrientsConsumed,
 
 }
 
-/**
- * @brief Resets the 'turnsWithoutWater' counter for all living branches in the tree.
- * This is typically called after a watering action.
- */
+
 void Tree::resetAllBranchWaterCounters() {
     // Method is now empty as branch water counters are removed.
 }
 
-/**
- * @brief Resets the 'turnsWithoutNutrients' counter for all living branches in the tree.
- * This is typically called after a fertilising action.
- */
+
 void Tree::resetAllBranchNutrientCounters() {
     // Method is now empty as branch nutrient counters are removed.
 }
@@ -246,20 +225,7 @@ void Tree::pruneBranch(int branchIndex, vector<Branch*> &removedBranches) {
 
     prunedBranchesLocal.push_back(branchList[currentBranchListIndex]);
 
-    // It's important to remove the branch from its parent *before* its memory is deleted or it's removed from branchList,
-    // to correctly update parent's childIndices.
-    // The actual removal from branchList and memory deletion should happen after processing children,
-    // or be handled carefully if done here (e.g. if removeBranches deletes memory).
-    // For now, let's assume removeBranches handles removal from branchList and parent, but not memory deletion.
-    // We'll collect all branches to be deleted and then remove them.
 
-    // The original code called removeBranches({branchIndex}) here, which removes it from the list.
-    // This can be problematic if the branch pointer is needed later or if child pruning relies on its presence.
-    // A safer approach is to mark for deletion or handle deletion at the end.
-    // However, to stick to the refactoring instructions and minimal logic change:
-    // We will collect all branches to be removed (this one and its descendants)
-    // and then call removeBranches once with all of them.
-    // This means the current `removeBranches({branchIndex});` will be moved effectively.
 
     vector<Branch*> childrenPruned;
     for(int childIdx : childIndices) {
@@ -270,36 +236,7 @@ void Tree::pruneBranch(int branchIndex, vector<Branch*> &removedBranches) {
         childrenPruned.clear(); // Clear for next iteration
     }
 
-    // Now, prepare the list of indices to be removed by removeBranches.
-    // This part of the logic changes slightly from the original, as removeBranches is called once at the end (implicitly).
-    // The output parameter `removedBranches` should contain all branches that were "pruned".
-    // The actual deletion from `branchList` and memory is handled by `removeBranches` or the caller.
 
-    // The current structure has `removeBranches` called inside the loop in the original.
-    // Let's simplify to collect all branches to be removed.
-    // The `removedBranches` parameter will effectively be this collection.
-
-    // The original `removeBranches({branchIndex});` call needs to be addressed.
-    // If `removeBranches` deletes the branch from `branchList`, then `branchList[currentBranchListIndex]`
-    // would be invalid for subsequent operations in this specific call if not handled.
-    // However, the recursive calls handle their own removals.
-    // The primary branch being pruned (`branchIndex`) needs to be removed.
-
-    // For this refactoring, assume `removeBranches` just removes from the list and parent.
-    // We are passing `removedBranches` by reference.
-    
-    // The original logic was:
-    // 1. Add current branch to prunedBranches.
-    // 2. Call removeBranches({branchIndex}) -> this removes it from the main list AND from its parent.
-    // 3. Recursively call pruneBranch for children, adding their results to prunedBranches.
-    // This seems correct. The recursive call will handle children.
-    // The main branch needs to be removed from its parent's list of children
-    // and from the tree's main branchList. The `removeBranches` method does this.
-    
-    // So, the call to removeBranches for the *current* branchIndex should still happen.
-    // The `removedBranches` vector is the accumulator for all branches that are part of this pruned subtree.
-
-    // Let's refine the accumulation. `removedBranches` is an output parameter.
     removedBranches.clear(); // Clear it first, as it's an out-param for this specific call scope
     removedBranches.push_back(branchList[currentBranchListIndex]); // Add the current branch
 
@@ -315,42 +252,6 @@ void Tree::pruneBranch(int branchIndex, vector<Branch*> &removedBranches) {
         tempPrunedChildren.clear(); 
     }
     
-    // After collecting this branch and all its descendants to `removedBranches`,
-    // this specific branch (`branchIndex`) needs to be removed from the main `branchList`
-    // and from its parent's child list. This is done by `removeBranches`.
-    // The original code did this *before* the recursive calls.
-    // Moving it after might be safer if recursion needed parent context, but pruneBranch starts with findBranch.
-    // Let's stick to the original order of removal for the current branch.
-    
-    // Re-evaluating original logic:
-    // `prunedBranches.push_back(branchList[findBranch(branchIndex)]);`
-    // `removeBranches({branchIndex});` // This removes the current branch from the tree's list
-                                    // and from its parent's child list.
-    // Then it iterates `childIndices`. If `removeBranches` modified `childIndices` (it shouldn't directly,
-    // but `branchList[currentBranchListIndex]` is now invalid), this would be an issue.
-    // `getChildren()` returns a copy, so `childIndices` is stable.
-
-    // Corrected flow based on understanding the original intent and applying refactoring:
-    // 1. Find branch. If not found, error and return.
-    // 2. Store its children (as copies).
-    // 3. Add current branch to `removedBranches` (output parameter).
-    // 4. Call `removeBranches` for the current `branchIndex`. This will remove it from `branchList`
-    //    and its parent's `childIndices`. *This means `branchList[currentBranchListIndex]` is no longer valid after this point.*
-    //    Therefore, step 3 should use a copy or get data before this.
-    //    The `prunedBranches.push_back(branchList[currentBranchListIndex]);` in original was fine because `removeBranches`
-    //    doesn't delete the Branch* pointer itself, just removes it from lists. The pointer is still valid.
-
-    // Let's rewrite with the refactoring instructions, keeping original logic sequence where possible.
-    // The `removedBranches` parameter should accumulate. The problem statement says "The core recursive logic for collecting
-    // pruned branches should remain the same." This implies `removedBranches` is an accumulator.
-    // The local `prunedBranches` in original was a bit confusing.
-    
-    // Version 2, aiming to be closer to original recursive accumulation, with optimized lookup:
-    // `removedBranches` is an out-parameter, it should contain the list of branches pruned *by this call and its children*.
-    // It should be cleared at the start of the function if it's an out-parameter for *this level* of recursion.
-    // Or, if it's an accumulator passed down, it shouldn't be cleared.
-    // Given typical C++ out-vector patterns, it's usually cleared or replaced.
-    // Let's assume it's meant to return branches pruned from this call downwards.
     
     removedBranches.clear(); // Standard practice for vector out-parameters.
     Branch* currentBranchPtr = branchList[currentBranchListIndex];
@@ -370,9 +271,7 @@ void Tree::pruneBranch(int branchIndex, vector<Branch*> &removedBranches) {
         }
         // childrenPrunedAccumulator will be cleared by the next recursive call's start.
     }
-    // The `removedBranches` now contains `currentBranchPtr` and all its descendant branches.
-    // The `removeBranches` call above handled the removal of `currentBranchPtr` from the tree's main list.
-    // The recursive calls to `pruneBranch` handled removal of children from the tree's main list.
+  
 }
 
 void Tree::removeBranches(vector<int> branchIndices){
@@ -386,17 +285,13 @@ void Tree::removeBranches(vector<int> branchIndices){
 
         // Get parent details BEFORE erasing the current branch
         int parentId = branchList[listIdxOfBranchToErase]->getParentIndex();
-        // Detach from parent
-        // Assuming getParentIndex() returns a special value like 0 or -1 if there's no parent (e.g. for the trunk)
-        // A branch should not be its own parent. The trunk's parentIndex is -1.
+
         if (parentId != branchList[listIdxOfBranchToErase]->getIndex() && parentId != -1) { 
             int parentListIdx = findBranch(parentId);
             if (parentListIdx != -1) {
                 branchList[parentListIdx]->removeChild(branchIdToRemove);
             } else {
-                // This case (parent ID exists but parent branch not found in branchList) might indicate an issue.
-                // For example, if the parent was already removed in the same batch.
-                // std::cerr << "Warning: Parent branch with ID " << parentId << " not found for child " << branchIdToRemove << std::endl;
+              
             }
         }
         

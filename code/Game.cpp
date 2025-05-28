@@ -1,6 +1,6 @@
 #include "Game.h"
 #include <fstream> // For std::ofstream
-// Removed: #include "include/nlohmann/json.hpp" // For JSON serialization
+
 
 //Sets static variables
 int Game::mouseXPos = 0;
@@ -232,15 +232,6 @@ void Game::drawScreen(){
             cv::putText(*screenImg, projectText, projectTextOrg, projectFontFace, projectFontScale, cv::Scalar(255,255,255), projectThickness); // White fill (thickness 1)
         }
 
-        //Draws the play button - assuming buttons have their own text color settings or will be updated
-        // For now, let's assume Clickable::draw handles text color. If not, we might need to adjust button drawing.
-        // To make buttons more visible, we can change their background color or add an outline here if needed.
-        // For example, making button backgrounds semi-transparent white:
-        // for(int i = 0; i < 2; ++i) { // Only for Play and Instructions for now
-        //    if (buttonList[i]) {
-        //        buttonList[i]->setBackgroundColor(cv::Scalar(255, 255, 255, 128)); // Example: Semi-transparent white
-        //    }
-        // }
         buttonList[0]->draw(screenImg);
         buttonList[1]->draw(screenImg);
         //Draws the load game button
@@ -348,22 +339,7 @@ void Game::drawScreen(){
 
     case AWAITING_WATER_INPUT:
     case AWAITING_FERTILISER_INPUT:
-        { // Block to scope variables
-            // Draw the underlying IN_GAME screen elements first
-            // (This assumes IN_GAME case has drawn them, or we explicitly call a common draw function)
-            // For simplicity, we'll re-draw necessary IN_GAME elements or rely on previous frame's partial draw
-            // A better way would be to have a common function `drawInGameElements()`
-            // For now, the IN_GAME case already draws the tree and buttons if we fall through.
-            // However, the switch structure needs a break for IN_GAME, so we might need to duplicate drawing logic slightly or refactor.
-            // Let's assume IN_GAME elements are drawn if we don't clear screenImg again.
-            // The current structure clears screenImg at the top, then draws based on state.
-            // So, for the modal, we draw IN_GAME first, then the modal.
-            // To achieve this, we can call drawScreen recursively with IN_GAME state, or duplicate drawing logic.
-            // For this task, let's just draw the modal on top of what IN_GAME would draw.
-            // The main game elements (tree, buttons) will be drawn by the IN_GAME case if we fall through.
-            // However, the switch statement structure means only one case is executed.
-
-            // Re-draw the IN_GAME state as background for the pop-up
+        { 
             this->drawInGameBackgroundUI();
 
             // Draw a semi-transparent overlay

@@ -244,16 +244,6 @@ Branch Branch::loadFromStream(std::istream& in) {
         std::cerr << "Error: Failed to parse Branch data line. Using default." << std::endl;
         return Branch();
     }
-
-    // Constructing the branch:
-    // The Branch constructor takes initial position (base of branch), angle, length, width.
-    // We have center_x, center_y, width, height, angle from file.
-    // We need to calculate base_x, base_y for the constructor.
-    // Base position calculation (inverse of how center is calculated in constructor from base):
-    // float xPos = initialXPos+0.5*initialLength*sin(initialAngle * (M_PI / 180));
-    // float yPos = initialYPos-0.5*initialLength*cos(initialAngle * (M_PI / 180));
-    // So: initialXPos = xPos - 0.5*initialLength*sin(initialAngle * (M_PI / 180))
-    //     initialYPos = yPos + 0.5*initialLength*cos(initialAngle * (M_PI / 180))
     
     float angle_rad_load = p_angle * (M_PI / 180.0f);
     float calculated_base_x = p_cx - (0.5f * p_h * std::sin(angle_rad_load));
@@ -263,14 +253,5 @@ Branch Branch::loadFromStream(std::istream& in) {
     
     loadedBranch.childIndices = p_childIndices; // Assign child indices
     
-    // The RotatedRect in loadedBranch is already set by its constructor based on base_x, base_y, angle, width, height.
-    // We need to ensure its center matches p_cx, p_cy if the constructor logic for center calculation is complex.
-    // Given the constructor takes base position, the loaded p_cx, p_cy were for the *center*.
-    // The current Branch constructor calculates the center from the base.
-    // So, providing the calculated_base_x, calculated_base_y should correctly set up the branchRect.
-    // Let's verify branchRect's center after construction.
-    // (Optional: add a check here if branchRect.center.x is close to p_cx and branchRect.center.y is close to p_cy)
-    // For now, assume the constructor correctly sets the branchRect based on the provided base coordinates.
-
     return loadedBranch;
 }

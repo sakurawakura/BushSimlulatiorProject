@@ -70,13 +70,6 @@ Player Player::loadFromStream(std::istream& in) {
     in >> keyword_w >> water >> keyword_f >> fertiliser;
 
     if (in.fail() || keyword_w != "water" || keyword_f != "fertiliser") {
-        // It's good to consume the rest of the line if there was an error,
-        // to help the next load operation if this is part of a larger file stream.
-        // However, for Player, it's typically at the start of its own section or file part.
-        // For now, just a simple error message.
-        // A more robust approach for partial reads might clear stream errors and ignore rest of line:
-        // in.clear(); 
-        // in.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
         std::cerr << "Error: Failed to load Player data. Using default." << std::endl;
         return Player(0.0f, 0.0f); // Return default player
     }
