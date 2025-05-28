@@ -1,23 +1,22 @@
 #include "Tree.h"
-#include <string>    // For std::string
-#include <vector>    // For std::vector
-#include <limits>    // For std::numeric_limits
-#include <sstream>   // For std::istringstream
-#include <iostream>  // For std::cerr, std::endl
-#include <algorithm> // For std::min
+#include <string>  
+#include <vector>  
+#include <limits>   
+#include <sstream>  
+#include <iostream>  
+#include <algorithm> 
 
-//Maximum area of a branch before it will no longer sprout new branches
+//maximum area of a branch before it will no longer sprout new branches
 const float NEW_BRANCH_THRESHOLD = 5000;
 
-
-//Required nutrients and water for a new branch to grow
+//rrequired nutrients and water for a new branch to grow
 const float NEW_BRANCH_REQUIREMENT = 3;
 
-//Scales the amount that branches grow by with a given amount of food
+//sscale the amount that branches grow by with a given amount of food
 const float BRANCH_GROWTH_AMOUNT = 50;
 
 //Chance of each existing branch growing a new branch
-const float NEW_BRANCH_PROBABILITY = 0.7;
+const float NEW_BRANCH_PROBABILITY = 0.6;
 
 // Resource consumption constants per branch per growth cycle
 const float WATER_CONSUMPTION_PER_BRANCH = 0.1f; 
@@ -29,7 +28,7 @@ nutrientLevel(initialNutrients), maxIndex(1) {
     //Adds the trunk as the first branch in the list
     branchList.push_back(trunk);
 
-    //sets a seed for randomly generated numbers
+    //set seed
     long int t = static_cast<long int> (time(NULL));
     srand(t);
 
@@ -46,82 +45,73 @@ Tree::~Tree(){
     }
 }
 
-float Tree::addWater(float litres){
-    if (litres < 0) litres = 0; // Do not add negative amounts
-
+float Tree::addWater(float litres){ //adding water 
+    if (litres < 0) litres = 0; 
     float availableCapacity = maxWater - waterLevel;
-    if (availableCapacity < 0) availableCapacity = 0; // Cannot be negative capacity
 
+    if (availableCapacity < 0) availableCapacity = 0; 
     float amountActuallyAdded = std::min(litres, availableCapacity);
-    
     waterLevel += amountActuallyAdded;
-
     return amountActuallyAdded;
 }
 
-float Tree::addNutrients(float kilograms){
-    if (kilograms < 0) kilograms = 0; // Do not add negative amounts
-
+float Tree::addNutrients(float kilograms){ //adding fert
+    if (kilograms < 0) kilograms = 0; 
     float availableCapacity = maxNutrients - nutrientLevel;
-    if (availableCapacity < 0) availableCapacity = 0; // Cannot be negative capacity
 
+    if (availableCapacity < 0) availableCapacity = 0; 
     float amountActuallyAdded = std::min(kilograms, availableCapacity);
-    
     nutrientLevel += amountActuallyAdded;
-    // Similar note about potential clamping for nutrientLevel if needed, but keep simple.
-
     return amountActuallyAdded;
 }
 
+//for removing all when reset
 void Tree::removeWater(float litres){
     waterLevel -= litres;
 }
-
 void Tree::removeNutrients(float kilograms){
     nutrientLevel -= kilograms;
 }
 
 void Tree::addBranches(vector<Branch*> newBranches){
-    //Adds the additional branches to the tree
+    //add additional branches to bush
     branchList.insert(branchList.end(), newBranches.begin(), newBranches.end());
-
-    //Updates the max water and nutrients of the tree
+    //Upadte max
     updateMaxConstraints();
 }
 
 void Tree::grow(float &waterConsumed, float &nutrientsConsumed, 
     vector<float> &widthIncreases, vector<float> &lengthIncreases, vector<int> &branchesGrown){
 
-    // === Growth Calculation ===
-    // Determine overall growth amount based on the minimum of available water and nutrients.
+    // ====== Growth Calculation === (help of chatgpt)
+  
     float growthAmount = min(waterLevel, nutrientLevel);
     float branchGrowthAmount = 0;
-    if (!branchList.empty()) { // Avoid division by zero if branchList is empty
+    if (!branchList.empty()) { //dont devide by 0
         branchGrowthAmount = BRANCH_GROWTH_AMOUNT * growthAmount / branchList.size();
     }
 
-    // Calculate consumption based on the number of branches
+    // calculate consumtion
     float currentWaterConsumption = 0.0f;
     float currentNutrientConsumption = 0.0f;
-    int branchCount = branchList.size(); // All branches are considered for consumption
+    int branchCount = branchList.size(); //all branches are considered
     
-    if (branchCount > 0) { 
+    if (branchCount > 0) { // calculate
         currentWaterConsumption = branchCount * WATER_CONSUMPTION_PER_BRANCH;
         currentNutrientConsumption = branchCount * NUTRIENT_CONSUMPTION_PER_BRANCH;
     }
 
-    // Clamp consumption to ensure resource levels don't go below zero due to this consumption step
+    //making sureresource levels don't go <0
     currentWaterConsumption = std::min(currentWaterConsumption, waterLevel);
     currentNutrientConsumption = std::min(currentNutrientConsumption, nutrientLevel);
-
     waterLevel -= currentWaterConsumption;
     nutrientLevel -= currentNutrientConsumption;
 
-    //Updates output variables based on the amount of water and nutrients consumed
+    //Updates output variables
     waterConsumed = currentWaterConsumption;
     nutrientsConsumed = currentNutrientConsumption;
 
-    int currentNumBranches = branchList.size();
+    int currentNumBranches = branchList.size(); // init the number of branches
 
     const float FRUIT_SPAWN_PROBABILITY = 0.1f;
 
@@ -130,16 +120,14 @@ void Tree::grow(float &waterConsumed, float &nutrientsConsumed,
         float widthGrowth;
         float lengthGrowth;
 
-        //Grows the branch by the calculated amount
+        //grows branch by the calculated amount
         branchList[branchIndex]->grow(branchGrowthAmount, widthGrowth, lengthGrowth);
 
-
-        //Adds the growth amounts to the corresponding lists
+        //Add the growth amounts to the corresponding lists
         widthIncreases.push_back(widthGrowth);
         lengthIncreases.push_back(lengthGrowth);
 
         //Moves all of the child branches in accordance with the branch's growth
-        //Gets children of current branch
         vector<int> childIndices = branchList[branchIndex]->getChildren();
 
         //Gets new position of the tip of the current branch
@@ -147,7 +135,7 @@ void Tree::grow(float &waterConsumed, float &nutrientsConsumed,
         float newTipY;
         branchList[branchIndex]->getTipPos(newTipX, newTipY);
 
-        if ((float)rand()/RAND_MAX < FRUIT_SPAWN_PROBABILITY) {
+        if ((float)rand()/RAND_MAX < FRUIT_SPAWN_PROBABILITY) { //fruit spawning feature with rarity
             FruitType spawnedFruitType;
             cv::Scalar spawnedFruitColor;
             float randVal = (float)rand() / RAND_MAX;
@@ -200,32 +188,25 @@ void Tree::grow(float &waterConsumed, float &nutrientsConsumed,
 
 }
 
-
+// note to self.. test and remove these?
 void Tree::resetAllBranchWaterCounters() {
-    // Method is now empty as branch water counters are removed.
 }
-
-
 void Tree::resetAllBranchNutrientCounters() {
-    // Method is now empty as branch nutrient counters are removed.
 }
 
+// -------------- TRIMMING THE HEDGE
 void Tree::pruneBranch(int branchIndex, vector<Branch*> &removedBranches) {
     int currentBranchListIndex = findBranch(branchIndex);
 
-    if (currentBranchListIndex == -1) {
-        std::cerr << "Error: Attempted to prune non-existent branch with index: " << branchIndex << "." << std::endl;
+    if (currentBranchListIndex == -1) { // error handling
+        std::cerr << "error cant trim branch " << branchIndex << "." << std::endl;
         return;
     }
 
-    //Gets children of branch
+    //get the children of branch
     vector<int> childIndices = branchList[currentBranchListIndex]->getChildren();
-
     vector<Branch*> prunedBranchesLocal; // Use a local vector to accumulate
-
     prunedBranchesLocal.push_back(branchList[currentBranchListIndex]);
-
-
 
     vector<Branch*> childrenPruned;
     for(int childIdx : childIndices) {
@@ -233,43 +214,34 @@ void Tree::pruneBranch(int branchIndex, vector<Branch*> &removedBranches) {
         for(Branch* p_branch : childrenPruned) {
             prunedBranchesLocal.push_back(p_branch);
         }
-        childrenPruned.clear(); // Clear for next iteration
+        childrenPruned.clear(); // Clear
     }
 
 
-    removedBranches.clear(); // Clear it first, as it's an out-param for this specific call scope
+    removedBranches.clear(); // Clear it first
     removedBranches.push_back(branchList[currentBranchListIndex]); // Add the current branch
 
-    // Recursively prune children and collect their results
+    // ecursively prune children
     vector<Branch*> tempPrunedChildren;
     for(int childIdx : childIndices) {
         pruneBranch(childIdx, tempPrunedChildren); // Recursive call
         for(Branch* p_branch : tempPrunedChildren) {
             removedBranches.push_back(p_branch); // Add to the main output
         }
-        // tempPrunedChildren is cleared by the recursive call's start or should be if it's purely an out-param.
-        // For safety, or if it can accumulate across calls (which it shouldn't as an out-param), clear here.
         tempPrunedChildren.clear(); 
     }
     
-    
-    removedBranches.clear(); // Standard practice for vector out-parameters.
+    removedBranches.clear(); // Svector output
     Branch* currentBranchPtr = branchList[currentBranchListIndex];
     removedBranches.push_back(currentBranchPtr);
-
-    // Original code called removeBranches for the current branch *before* recursive calls.
-    // This is important because it detaches the current branch from the tree structure.
-    removeBranches({branchIndex}); // Removes from branchList and parent's child list.
-                                 // After this, currentBranchListIndex is invalid for indexing branchList.
-                                 // currentBranchPtr is still valid.
-
+    removeBranches({branchIndex}); 
     vector<Branch*> childrenPrunedAccumulator;
-    for (int childIdx : childIndices) { // childIndices is a copy, so it's stable.
+    for (int childIdx : childIndices) { // childIndices is a copy,
         pruneBranch(childIdx, childrenPrunedAccumulator); // Recursive call
         for(Branch* p_branch : childrenPrunedAccumulator) {
             removedBranches.push_back(p_branch); // Accumulate results
         }
-        // childrenPrunedAccumulator will be cleared by the next recursive call's start.
+
     }
   
 }
@@ -295,7 +267,7 @@ void Tree::removeBranches(vector<int> branchIndices){
             }
         }
         
-        // Now erase the branch itself
+        //erase branch ITSEFDL
         branchList.erase(branchList.begin() + listIdxOfBranchToErase);
     }
 
@@ -304,23 +276,23 @@ void Tree::removeBranches(vector<int> branchIndices){
 }
 
 void Tree::modifyBranches(vector<float> widthIncreases, vector<float> lengthIncreases){
-    //Checks that the modification is valid
+    //valid?
     if(widthIncreases.size() != branchList.size() || lengthIncreases.size() != branchList.size()){
         cout << "Error in Tree.modifyBranches(), size of modifying arrays does not match the number of branches in the tree" << endl;
         return;
     }
 
-    //Loops through each of the branches in the tree
+    //Loop each branch
     for(int i = 0; i < branchList.size(); i++){
         //Adjusts branch size
         branchList[i]->modifySize(-widthIncreases[i], -lengthIncreases[i]);
     }
 
-    //Adjusts positions of branches in accordance with their new sizes
+    //Adjusts positions 
     updateBranchPos();
 
 
-    //Updates the max water and nutrients of the tree
+    //Updates the max water and nutrients
     updateMaxConstraints();
 }
 
@@ -340,7 +312,7 @@ void Tree::updateMaxConstraints(){
         totalArea += branchList[i]->getSize();
     }
 
-    //Updates the maximum water and nutrients that can be stored in the tree
+    //Updatethe maximum water and nutrients
     maxWater = totalArea/50;
     maxNutrients = totalArea/50;
 }
@@ -348,14 +320,12 @@ void Tree::updateMaxConstraints(){
 void Tree::updateBranchPos(){
 
     
-    //Adjusts positions of branches in accordance with their new sizes
+    //Adjusts positions 
     for(int i = 0; i < branchList.size(); i++){
-        //Moves child branches to account for the change in size of their parent
+        //Moves child branches
 
         //Gets children of current branch
         vector<int> childIndices = branchList[i]->getChildren();
-
-        //Gets new position of the tip of the current branch
         float newTipX;
         float newTipY;
         branchList[i]->getTipPos(newTipX, newTipY);
@@ -372,21 +342,22 @@ const std::vector<Fruit>& Tree::getFruitsList() const {
     return fruitsList;
 }
 
+// ----------- FRUIT COLLECTION
 bool Tree::collectFruitAtPoint(const cv::Point& clickPoint, FruitType& outCollectedFruitType, int& outCollectedFruitId) {
-    for (Fruit& fruit : fruitsList) { // Iterate with non-const reference to modify 'collected'
+    for (Fruit& fruit : fruitsList) { // Iterate with non-const reference to modify collected
         if (!fruit.collected) {
-            // Simple circle collision detection: (x2-x1)^2 + (y2-y1)^2 < r^2
+            // Simple circle collision detection: (x2-x1)^2 + (y2-y1)^2 < r^2 (CHATGPT HELP)
             float distanceSq = pow(static_cast<float>(clickPoint.x) - fruit.position.x, 2) + 
                              pow(static_cast<float>(clickPoint.y) - fruit.position.y, 2);
             if (distanceSq < (fruit.radius * fruit.radius)) {
                 fruit.collected = true; // Mark as collected
                 outCollectedFruitType = fruit.type;
                 outCollectedFruitId = fruit.id;
-                return true; // Fruit collected
+                return true; //ruit collected
             }
         }
     }
-    return false; // No fruit collected at this point
+    return false; 
 }
 
 void Tree::draw(Mat* img){
@@ -404,6 +375,8 @@ int Tree::getClickedIndex(int mouseX, int mouseY) {
     return -1;
 }
 
+
+// details for all save functionality
 void Tree::printData(){
     cout << "Tree object" << endl;
     cout << "Water level: " << waterLevel;
@@ -456,6 +429,8 @@ void Tree::saveToStream(std::ostream& out) const {
     }
 }
 
+
+// LOADING FUCNTIONALITY ---------------------------
 Tree* Tree::loadFromStream(std::istream& in, int windowWidth, int windowHeight) {
     std::string k_max_idx, k_water, k_nutrient, k_num_branches;
     int p_maxIndex = 0;
@@ -475,18 +450,17 @@ Tree* Tree::loadFromStream(std::istream& in, int windowWidth, int windowHeight) 
         return nullptr;
     }
 
-    // Consume the rest of the line after num_branches
-    std::string dummy_line;
+    std::string dummy_line; // consume line after
     std::getline(in, dummy_line);
 
     std::vector<Branch*> loadedBranches;
     loadedBranches.reserve(p_num_branches);
 
     for (int i = 0; i < p_num_branches; ++i) {
-        Branch loadedBranch = Branch::loadFromStream(in); // Assumes Branch::loadFromStream reads one line
-        if (loadedBranch.getIndex() == -1) { // Branch::loadFromStream returns default branch with index -1 on failure
+        Branch loadedBranch = Branch::loadFromStream(in);
+        if (loadedBranch.getIndex() == -1) { 
             std::cerr << "Error loading branch " << i << " from stream." << std::endl;
-            for (Branch* b : loadedBranches) delete b; // Cleanup already loaded branches
+            for (Branch* b : loadedBranches) delete b; 
             return nullptr;
         }
         loadedBranches.push_back(new Branch(loadedBranch));
@@ -514,16 +488,15 @@ Tree* Tree::loadFromStream(std::istream& in, int windowWidth, int windowHeight) 
 
     loadedTree->maxIndex = p_maxIndex;
 
-    // Fruit Data Reading
+    // Fruit Data Reading---------------------------------------------------
     std::string k_next_fruit_id, k_num_fruits;
-    int temp_next_fruit_id = 0; // Use temporary for reading
+    int temp_next_fruit_id = 0; // Use temporary
     int num_fruits = 0;
 
     in >> k_next_fruit_id >> temp_next_fruit_id >> k_num_fruits >> num_fruits;
 
     if (in.fail() || k_next_fruit_id != "next_fruit_id" || k_num_fruits != "num_fruits") {
         std::cerr << "Error: Failed to load fruit metadata. Fruits will not be loaded." << std::endl;
-        // Proceed without loading fruits, nextFruitId remains its default, fruitsList is empty.
     } else {
         loadedTree->nextFruitId = temp_next_fruit_id; // Assign if read successfully
         loadedTree->fruitsList.clear();
@@ -554,7 +527,7 @@ Tree* Tree::loadFromStream(std::istream& in, int windowWidth, int windowHeight) 
                 // Consume the rest of the potentially malformed line for this fruit
                 std::string bad_fruit_line;
                 std::getline(in, bad_fruit_line);
-                in.clear(); // Clear error flags to allow further reading for next fruits
+                in.clear(); // clear error
                 continue; 
             }
             tempFruit.type = static_cast<FruitType>(fruit_type_int);

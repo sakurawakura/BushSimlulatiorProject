@@ -17,7 +17,6 @@ using namespace std;
 using namespace cv;
 
 // Represents a single branch in the Tree.
-// Handles its own geometry, growth, leaf generation, and lifecycle (sustenance).
 class Branch : public Printable{
     public:
         //Constructors
@@ -60,7 +59,7 @@ class Branch : public Printable{
 
         void printData();
 
-        // Text-based save/load
+        // text-based save/load
         void saveToStream(std::ostream& out) const;
         static Branch loadFromStream(std::istream& in);
 

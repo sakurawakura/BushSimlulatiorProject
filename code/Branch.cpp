@@ -37,7 +37,7 @@ Branch::Branch() : Branch(-1, -1, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f) {
 };
 
 Branch::~Branch() {
-    // Empty destructor - resources are managed by members (e.g., std::vector, RotatedRect)
+    // Empty destructor->managed by members
 }
 float Branch::getAngle(){
     return branchRect.angle;
@@ -166,6 +166,7 @@ bool Branch::containsMouse(int mouseX, int mouseY){
     return newRect.contains(Point(rotatedX, rotatedY));
 }
 
+// prints the dsata of the branch object
 void Branch::printData(){
     cout << "Branch object" << endl;
     cout << "Index: " << index << endl;
@@ -198,30 +199,30 @@ void Branch::saveToStream(std::ostream& out) const {
 }
 
 // loading (first checks for first line to verify if its out games file)
-
-//error handling first
 Branch Branch::loadFromStream(std::istream& in) {
     std::string line;
     if (!std::getline(in, line)) {
-        std::cerr << "Error: Could not read line for Branch." << std::endl;
-        return Branch(); // Return default/invalid branch
+        std::cerr << "error cannot read line for branch" << std::endl;
+        return Branch(); // Return default branch if reading fails
     }
 
     std::istringstream iss(line);
-    std::string K_BRANCH, K_INDEX, K_PARENT_INDEX, K_CENTER_X, K_CENTER_Y, K_WIDTH, K_HEIGHT, K_ANGLE, K_NUM_CHILDREN;
+    std::string K_BRANCH, K_INDEX, K_PARENT_INDEX, K_CENTER_X, K_CENTER_Y, K_WIDTH, K_HEIGHT, K_ANGLE, K_NUM_CHILDREN; // keywords for parsing
     
-    int p_idx = -1, p_parent_index = -1, p_num_children = 0;
+    //
+    int p_idx = -1, p_parent_index = -1, p_num_children = 0; 
     float p_cx = 0.f, p_cy = 0.f, p_w = 0.f, p_h = 0.f, p_angle = 0.f;
     std::vector<int> p_childIndices;
 
-    iss >> K_BRANCH; // Read "branch" keyword
+
+    iss >> K_BRANCH; // read "branch" keyword
 
     if (K_BRANCH != "branch") {
-        std::cerr << "Error: Failed to parse Branch data line. Using default." << std::endl;
+        std::cerr << "Error: failed to read Branch" << std::endl;
         return Branch();
     }
 
-    // Read all fields sequentially
+    // read all fields one by one
     iss >> K_INDEX >> p_idx
         >> K_PARENT_INDEX >> p_parent_index
         >> K_CENTER_X >> p_cx 
@@ -232,26 +233,28 @@ Branch Branch::loadFromStream(std::istream& in) {
         >> K_NUM_CHILDREN >> p_num_children;
 
     p_childIndices.resize(p_num_children);
-    for (int i = 0; i < p_num_children; ++i) {
+    for (int i = 0; i < p_num_children; ++i) {  //loop to read child indices
         iss >> p_childIndices[i];
     }
 
-    // Final check after all reads from iss
+    // finally check all keywords were read and parsed or else error
     if (iss.fail() || 
         K_INDEX != "index" || K_PARENT_INDEX != "parent_index" ||
         K_CENTER_X != "center_x" || K_CENTER_Y != "center_y" || K_WIDTH != "width" || K_HEIGHT != "height" || K_ANGLE != "angle" ||
         K_NUM_CHILDREN != "num_children") {
-        std::cerr << "Error: Failed to parse Branch data line. Using default." << std::endl;
+        std::cerr << "error save file failed to parse" << std::endl;
         return Branch();
     }
     
+
     float angle_rad_load = p_angle * (M_PI / 180.0f);
     float calculated_base_x = p_cx - (0.5f * p_h * std::sin(angle_rad_load));
     float calculated_base_y = p_cy + (0.5f * p_h * std::cos(angle_rad_load));
 
+    // creating the branches from loaded data
     Branch loadedBranch(p_idx, p_parent_index, p_angle, p_h, p_w, calculated_base_x, calculated_base_y);
     
-    loadedBranch.childIndices = p_childIndices; // Assign child indices
+    loadedBranch.childIndices = p_childIndices; // assign child indices
     
     return loadedBranch;
 }

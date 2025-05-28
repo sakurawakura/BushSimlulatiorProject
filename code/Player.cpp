@@ -2,10 +2,10 @@
 #include <string> // For std::string in loadFromStream
 #include <stdexcept> // For potential future error handling improvements
 
-// Constructor to initialize water and fertilizer supplies
+//initialize water and fertilizer supplies
 Player::Player(float water, float fertiliser) : waterSupply(water), fertiliserSupply(fertiliser) {}
 
-// Method to use water, returns true if successful
+// Method to use water
 bool Player::useWater(float amount) {
     if (waterSupply >= amount) {
         waterSupply -= amount;
@@ -17,7 +17,7 @@ bool Player::useWater(float amount) {
     }
 }
 
-// Method to use fertilizer, returns true if successful
+// Method to use fertilizer
 bool Player::useFertiliser(float amount) {
     if (fertiliserSupply >= amount) {
         fertiliserSupply -= amount;
@@ -29,27 +29,29 @@ bool Player::useFertiliser(float amount) {
     }
 }
 
-// Method to add water to the player's supply
+// add more water to player supply
 void Player::addWater(float amount) {
     waterSupply += amount;
     std::cout << "Added " << amount << " units of water. Total water: " << waterSupply << std::endl;
 }
 
-// Method to add fertilizer to the player's supply
+// add fertliser to player supply
 void Player::addFertiliser(float amount) {
     fertiliserSupply += amount;
     std::cout << "Added " << amount << " units of fertilizer. Total fertilizer: " << fertiliserSupply << std::endl;
 }
 
-// Get current water supply
+// current water
 float Player::getWaterSupply() {
     return waterSupply;
 }
 
-// Get current fertilizer supply
+// current fert
 float  Player::getFertiliserSupply() {
     return fertiliserSupply;
 }
+
+// testing 
 
 void Player::printData(){
     cout << "Player object" << endl;
@@ -70,7 +72,7 @@ Player Player::loadFromStream(std::istream& in) {
     in >> keyword_w >> water >> keyword_f >> fertiliser;
 
     if (in.fail() || keyword_w != "water" || keyword_f != "fertiliser") {
-        std::cerr << "Error: Failed to load Player data. Using default." << std::endl;
+        std::cerr << "error cant load player data" << std::endl;
         return Player(0.0f, 0.0f); // Return default player
     }
 
