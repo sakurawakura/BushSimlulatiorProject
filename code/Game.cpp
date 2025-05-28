@@ -369,7 +369,7 @@ void Game::drawScreen(){
         }
     }
 
-    cv::imshow("Time Travel Tree", *screenImg); 
+    cv::imshow("Bush Growing Simulator", *screenImg); 
 }
 
 void Game::handleMouseClick(int event, int mouseX, int mouseY, int , void*){
