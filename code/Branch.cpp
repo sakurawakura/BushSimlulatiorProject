@@ -19,7 +19,7 @@
   * */ 
 
   // Starting up with a new branch... includes all of the above
-Branch::Branch(int branchIndex, int parentBranchIndex, float initialAngle, float initialLength, float initialWidth, float initialXPos, float initialYPos): index(branchIndex), parentIndex(parentBranchIndex), age(0), turnsWithoutWater(0), turnsWithoutNutrients(0), isAlive(true) 
+Branch::Branch(int branchIndex, int parentBranchIndex, float initialAngle, float initialLength, float initialWidth, float initialXPos, float initialYPos): index(branchIndex), parentIndex(parentBranchIndex)
 {
     cv::Size2f size = cv::Size2f(initialWidth, initialLength); 
 
@@ -46,41 +46,6 @@ void Branch::getTipPos(float &xPosition, float &yPosition) {
     // Find the tips of branch trig (CHATGPT)
     xPosition = branchRect.center.x+0.5*branchRect.size.height*sin(branchRect.angle * (M_PI / 180));
     yPosition = branchRect.center.y-0.5*branchRect.size.height*cos(branchRect.angle * (M_PI / 180));
-}
-
-// -------------- life of bush
-
-// increment counter to keep track of truns without water and fertliser
-void Branch::incrementTurnsWithoutWater() {
-    if (isAlive) {
-        turnsWithoutWater++;
-    }
-}
-void Branch::incrementTurnsWithoutNutrients() {
-    if (isAlive) {
-        turnsWithoutNutrients++;
-    }
-}
-
-// checks how many turns since last supplied 
-int Branch::getTurnsWithoutWater() const {
-    return turnsWithoutWater;
-}
-int Branch::getTurnsWithoutNutrients() const {
-    return turnsWithoutNutrients;
-}
-
-// resets when bush gets watered or fertilsier
-void Branch::resetTurnsWithoutWater() {
-    turnsWithoutWater = 0;
-}
-void Branch::resetTurnsWithoutNutrients() {
-    turnsWithoutNutrients = 0;
-}
-
-// sets alive status of branch
-void Branch::setIsAlive(bool aliveStatus) {
-    isAlive = aliveStatus;
 }
 
 int Branch::getIndex(){
@@ -122,66 +87,18 @@ void Branch::setPos(float newXPos, float newYPos){
 
 // growing the branches
 void Branch::grow(float areaIncrease, float &widthIncrease, float &lengthIncrease){
-    if (!isAlive) {
-        widthIncrease = 0.0f;
-        lengthIncrease = 0.0f;
-        return;
-    }
-    //The change in length is equal to (n/age) times the change in width 
-    //so the branch initially grows longer and then later grows wider
-    
-    const float n_factor = 20.0f;
-
-    float current_width = branchRect.size.width;
-    float current_length = branchRect.size.height;
-
-    //Incrementage by one
-    age++;
-
-    //growth calculation here (CHATGPT)
-    double discriminant = 0.0;
-    if (age > 0) {
-        discriminant = pow((n_factor * current_width) / age + current_length, 2) + (4 * n_factor * areaIncrease) / age;
+    // Simplified growth logic
+    if (areaIncrease > 0) {
+        lengthIncrease = sqrt(areaIncrease);
+        widthIncrease = lengthIncrease * 0.1f;
     } else {
-        discriminant = pow(current_length, 2); // length increase
-    }
-
-    if (discriminant < 0.0 || age == 0) { 
-        widthIncrease = 0.0f;
         lengthIncrease = 0.0f;
-
-    } else { //width increase if its old
-        if (age > 0) { // Ensure age is positive for division
-           widthIncrease = (-(n_factor * current_width) / age - current_length + sqrt(discriminant)) / (2 * n_factor / age);
-        } else {
-           widthIncrease = 0.0f; // dont grow if age is 0
-        }
-
-        if (widthIncrease < 0.0f) {
-            widthIncrease = 0.0f; // positive set
-        }
-       
-        if (age > 0) {
-           lengthIncrease = (n_factor / age) * widthIncrease;
-        } else {
-           lengthIncrease = 0.0f; 
-        }
-
-        if (lengthIncrease < 0.0f) {
-            lengthIncrease = 0.0f; 
-        }
+        widthIncrease = 0.0f;
     }
     
     //applying the growth 
     branchRect.size.width += widthIncrease;
     branchRect.size.height += lengthIncrease;
-}
-
-//decrement age of branchs
-void Branch::decrementAge(){
-    if(age>0){
-        age--;
-    }
 }
 
 void Branch::modifySize(float widthChange, float lengthChange){
@@ -212,41 +129,8 @@ void Branch::draw(Mat* img){
         vertices.push_back(vertices2f[i]);
     }
 
-    //Draws the branch to the image also color determineed based on age
-
-    // RGB (CHATGPT)
-    float baseR = 139.0f;
-    float baseG = 69.0f;
-    float baseB = 19.0f;
-
-    const int maxAgeForColorEffect = 50; // older branches will be darker
-    
-    // age factor: from 0.0 (youngest) to 1.0 
-    float ageFactor = 0.0f;
-    if (maxAgeForColorEffect > 0) {
-        ageFactor = static_cast<float>(std::min(this->age, maxAgeForColorEffect)) / static_cast<float>(maxAgeForColorEffect);
-    }
-
-    //brightness scales: 1.0 (original brightness) to 0.5 half
-    float brightnessScale = 1.0f - (ageFactor * 0.5f); 
-
-    // calc new colour valurs
-    int r = static_cast<int>(baseR * brightnessScale);
-    int g = static_cast<int>(baseG * brightnessScale);
-    int b = static_cast<int>(baseB * brightnessScale);
-
-    // must be in valid range or it will break
-    r = std::max(0, std::min(255, r));
-    g = std::max(0, std::min(255, g));
-    b = std::max(0, std::min(255, b));
-
-    if (!isAlive) {
-        // colour dead branch with darker
-        fillConvexPoly(*img, vertices, CV_RGB(101, 67, 33)); 
-    } else {
-        // draw living branch with age based color
-        fillConvexPoly(*img, vertices, CV_RGB(r, g, b));
-    }
+    //Draws the branch to the image
+    fillConvexPoly(*img, vertices, CV_RGB(139, 69, 19));
 }
 
 
@@ -286,10 +170,6 @@ void Branch::printData(){
     cout << "Branch object" << endl;
     cout << "Index: " << index << endl;
     cout << "Parent index: " << parentIndex << endl;
-    cout << "Age: " << age << endl;
-    cout << "Is alive: " << (isAlive ? "Yes" : "No") << endl;
-    cout << "Turns without water: " << turnsWithoutWater << endl;
-    cout << "Turns without nutrients: " << turnsWithoutNutrients << endl;
     cout << "Position: (" << branchRect.center.x << ", " << branchRect.center.y << ")" << endl;
     cout << "Size: (Width: " << branchRect.size.width << ", Height: " << branchRect.size.height << ")" << endl;
     cout << "Angle: " << branchRect.angle << endl;
@@ -305,7 +185,6 @@ void Branch::saveToStream(std::ostream& out) const {
     out << "branch" //indicates that its our games file
         << " index " << index
         << " parent_index " << parentIndex
-        << " age " << age
         << " center_x " << branchRect.center.x
         << " center_y " << branchRect.center.y
         << " width " << branchRect.size.width
@@ -315,10 +194,6 @@ void Branch::saveToStream(std::ostream& out) const {
     for (int childIdx : childIndices) {
         out << " " << childIdx; // child indices (space seprated)
     }
-    // life data
-    out << " turns_water " << turnsWithoutWater;         // Turns without water
-    out << " turns_nutrients " << turnsWithoutNutrients; // tturns without nutrients
-    out << " is_alive " << isAlive;                     // alive status
     out << std::endl;
 }
 
@@ -333,11 +208,10 @@ Branch Branch::loadFromStream(std::istream& in) {
     }
 
     std::istringstream iss(line);
-    std::string K_BRANCH, K_INDEX, K_PARENT_INDEX, K_AGE, K_CENTER_X, K_CENTER_Y, K_WIDTH, K_HEIGHT, K_ANGLE, K_NUM_CHILDREN, K_TURNS_WATER, K_TURNS_NUTRIENTS, K_IS_ALIVE;
+    std::string K_BRANCH, K_INDEX, K_PARENT_INDEX, K_CENTER_X, K_CENTER_Y, K_WIDTH, K_HEIGHT, K_ANGLE, K_NUM_CHILDREN;
     
-    int p_idx = -1, p_parent_index = -1, p_age = 0, p_num_children = 0, p_turns_water = 0, p_turns_nutrients = 0;
+    int p_idx = -1, p_parent_index = -1, p_num_children = 0;
     float p_cx = 0.f, p_cy = 0.f, p_w = 0.f, p_h = 0.f, p_angle = 0.f;
-    bool p_is_alive = false;
     std::vector<int> p_childIndices;
 
     iss >> K_BRANCH; // Read "branch" keyword
@@ -350,7 +224,6 @@ Branch Branch::loadFromStream(std::istream& in) {
     // Read all fields sequentially
     iss >> K_INDEX >> p_idx
         >> K_PARENT_INDEX >> p_parent_index
-        >> K_AGE >> p_age
         >> K_CENTER_X >> p_cx 
         >> K_CENTER_Y >> p_cy 
         >> K_WIDTH >> p_w 
@@ -363,16 +236,11 @@ Branch Branch::loadFromStream(std::istream& in) {
         iss >> p_childIndices[i];
     }
 
-    // Continue reading sustenance data directly
-    iss >> K_TURNS_WATER >> p_turns_water
-        >> K_TURNS_NUTRIENTS >> p_turns_nutrients
-        >> K_IS_ALIVE >> p_is_alive;
-
     // Final check after all reads from iss
     if (iss.fail() || 
-        K_INDEX != "index" || K_PARENT_INDEX != "parent_index" || K_AGE != "age" ||
+        K_INDEX != "index" || K_PARENT_INDEX != "parent_index" ||
         K_CENTER_X != "center_x" || K_CENTER_Y != "center_y" || K_WIDTH != "width" || K_HEIGHT != "height" || K_ANGLE != "angle" ||
-        K_NUM_CHILDREN != "num_children" || K_TURNS_WATER != "turns_water" || K_TURNS_NUTRIENTS != "turns_nutrients" || K_IS_ALIVE != "is_alive") {
+        K_NUM_CHILDREN != "num_children") {
         std::cerr << "Error: Failed to parse Branch data line. Using default." << std::endl;
         return Branch();
     }
@@ -393,11 +261,7 @@ Branch Branch::loadFromStream(std::istream& in) {
 
     Branch loadedBranch(p_idx, p_parent_index, p_angle, p_h, p_w, calculated_base_x, calculated_base_y);
     
-    loadedBranch.age = p_age; 
     loadedBranch.childIndices = p_childIndices; // Assign child indices
-    loadedBranch.turnsWithoutWater = p_turns_water;
-    loadedBranch.turnsWithoutNutrients = p_turns_nutrients;
-    loadedBranch.isAlive = p_is_alive;
     
     // The RotatedRect in loadedBranch is already set by its constructor based on base_x, base_y, angle, width, height.
     // We need to ensure its center matches p_cx, p_cy if the constructor logic for center calculation is complex.

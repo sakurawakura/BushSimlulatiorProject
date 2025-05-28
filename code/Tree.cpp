@@ -107,23 +107,6 @@ void Tree::addBranches(vector<Branch*> newBranches){
 void Tree::grow(float &waterConsumed, float &nutrientsConsumed, 
     vector<float> &widthIncreases, vector<float> &lengthIncreases, vector<int> &branchesGrown){
 
-    // === Branch Sustenance and Lifecycle Management ===
-    // Iterate through all branches to update their sustenance status before growth.
-    for (Branch* branch : branchList) {
-        if (branch->getIsAlive()) { // Only process living branches.
-            // Increment counters for turns without water and nutrients.
-            branch->incrementTurnsWithoutWater();
-            branch->incrementTurnsWithoutNutrients();
-
-            // Check if the branch should die due to neglect.
-            if (branch->getTurnsWithoutWater() > Branch::MAX_TURNS_WITHOUT_SUSTENANCE ||
-                branch->getTurnsWithoutNutrients() > Branch::MAX_TURNS_WITHOUT_SUSTENANCE) {
-                branch->setIsAlive(false); // Mark the branch as dead.
-                // std::cout << "Branch " << branch->getIndex() << " has died due to neglect." << std::endl; // Optional debug message.
-            }
-        }
-    }
-
     // === Growth Calculation ===
     // Determine overall growth amount based on the minimum of available water and nutrients.
     float growthAmount = min(waterLevel, nutrientLevel);
@@ -132,21 +115,14 @@ void Tree::grow(float &waterConsumed, float &nutrientsConsumed,
         branchGrowthAmount = BRANCH_GROWTH_AMOUNT * growthAmount / branchList.size();
     }
 
-    // Calculate consumption based on the number of living branches
+    // Calculate consumption based on the number of branches
     float currentWaterConsumption = 0.0f;
     float currentNutrientConsumption = 0.0f;
-    int livingBranchesCount = 0;
-
-    for (Branch* branch : branchList) {
-        if (branch->getIsAlive()) {
-            livingBranchesCount++;
-        }
-    }
+    int branchCount = branchList.size(); // All branches are considered for consumption
     
-    // Only consume if there are living branches
-    if (livingBranchesCount > 0) { 
-        currentWaterConsumption = livingBranchesCount * WATER_CONSUMPTION_PER_BRANCH;
-        currentNutrientConsumption = livingBranchesCount * NUTRIENT_CONSUMPTION_PER_BRANCH;
+    if (branchCount > 0) { 
+        currentWaterConsumption = branchCount * WATER_CONSUMPTION_PER_BRANCH;
+        currentNutrientConsumption = branchCount * NUTRIENT_CONSUMPTION_PER_BRANCH;
     }
 
     // Clamp consumption to ensure resource levels don't go below zero due to this consumption step
@@ -186,7 +162,7 @@ void Tree::grow(float &waterConsumed, float &nutrientsConsumed,
         float newTipY;
         branchList[branchIndex]->getTipPos(newTipX, newTipY);
 
-        if (branchList[branchIndex]->getIsAlive() && (float)rand()/RAND_MAX < FRUIT_SPAWN_PROBABILITY) {
+        if ((float)rand()/RAND_MAX < FRUIT_SPAWN_PROBABILITY) {
             FruitType spawnedFruitType;
             cv::Scalar spawnedFruitColor;
             float randVal = (float)rand() / RAND_MAX;
@@ -244,11 +220,7 @@ void Tree::grow(float &waterConsumed, float &nutrientsConsumed,
  * This is typically called after a watering action.
  */
 void Tree::resetAllBranchWaterCounters() {
-    for (Branch* branch : branchList) {
-        if (branch->getIsAlive()) { // Only affect living branches.
-            branch->resetTurnsWithoutWater(); 
-        }
-    }
+    // Method is now empty as branch water counters are removed.
 }
 
 /**
@@ -256,11 +228,7 @@ void Tree::resetAllBranchWaterCounters() {
  * This is typically called after a fertilising action.
  */
 void Tree::resetAllBranchNutrientCounters() {
-    for (Branch* branch : branchList) {
-        if (branch->getIsAlive()) { // Only affect living branches.
-            branch->resetTurnsWithoutNutrients();
-        }
-    }
+    // Method is now empty as branch nutrient counters are removed.
 }
 
 void Tree::pruneBranch(int branchIndex, vector<Branch*> &removedBranches) {
@@ -451,8 +419,6 @@ void Tree::modifyBranches(vector<float> widthIncreases, vector<float> lengthIncr
     for(int i = 0; i < branchList.size(); i++){
         //Adjusts branch size
         branchList[i]->modifySize(-widthIncreases[i], -lengthIncreases[i]);
-        //Decreases age of branch
-        branchList[i]->decrementAge();
     }
 
     //Adjusts positions of branches in accordance with their new sizes

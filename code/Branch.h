@@ -20,23 +20,11 @@ using namespace cv;
 // Handles its own geometry, growth, leaf generation, and lifecycle (sustenance).
 class Branch : public Printable{
     public:
-        static const int MAX_TURNS_WITHOUT_SUSTENANCE = 5; ///< Maximum turns a branch can survive without water or nutrients before dying.
-
         //Constructors
         Branch(int branchIndex, int parentBranchIndex, float initialAngle, float initialLength, float initialWidth, 
         float xPos, float yPos);
         Branch();
         virtual ~Branch();
-
-        // Lifecycle methods
-        bool getIsAlive() const { return isAlive; } ///< Checks if the branch is currently alive.
-        void incrementTurnsWithoutWater(); ///< Increments the count of turns this branch has gone without water.
-        void incrementTurnsWithoutNutrients(); ///< Increments the count of turns this branch has gone without nutrients.
-        int getTurnsWithoutWater() const; ///< Gets the current count of turns without water.
-        int getTurnsWithoutNutrients() const; ///< Gets the current count of turns without nutrients.
-        void resetTurnsWithoutWater(); ///< Resets the turns without water counter to zero.
-        void resetTurnsWithoutNutrients(); ///< Resets the turns without nutrients counter to zero.
-        void setIsAlive(bool aliveStatus); ///< Sets the alive status of the branch and manages leaf state accordingly.
         
         float getAngle();
 
@@ -87,14 +75,6 @@ class Branch : public Printable{
 
         //Rectangle representing the branch
         RotatedRect branchRect;
-
-        //Number of times the branch has been allowed to grow
-        int age;
-
-        // Sustenance and lifecycle members
-        int turnsWithoutWater;      ///< Counter for consecutive turns the branch has not received water.
-        int turnsWithoutNutrients;  ///< Counter for consecutive turns the branch has not received nutrients.
-        bool isAlive;               ///< Flag indicating if the branch is alive or dead.
 };
 
 #endif
