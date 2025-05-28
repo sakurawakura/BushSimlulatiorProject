@@ -71,6 +71,8 @@ class Game : Printable{
         std::string currentInputText; // For text input pop-up
         int pendingActionType; // 0=None, 5=Water, 6=Fertiliser (matches button IDs)
 
+        void drawInGameBackgroundUI(); // Helper method for common UI drawing
+        void drawTextLines(cv::Mat* targetImg, const std::vector<std::string>& lines, int x, int startY, int lineSpacing, int fontFace, double fontScale, const cv::Scalar& color, int thickness); // Helper for drawing multiple text lines
         void saveGame(); // Method to save the game state
         void loadGame(); // Method to load the game state
 

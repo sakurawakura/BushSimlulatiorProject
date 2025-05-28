@@ -119,6 +119,56 @@ Game::~Game(){
     }
 }
 
+void Game::drawTextLines(cv::Mat* targetImg, const std::vector<std::string>& lines, int x, int startY, int lineSpacing, int fontFace, double fontScale, const cv::Scalar& color, int thickness) {
+    for (size_t i = 0; i < lines.size(); ++i) {
+        cv::Point textOrg(x, startY + i * lineSpacing);
+        cv::putText(*targetImg, lines[i], textOrg, fontFace, fontScale, color, thickness);
+    }
+}
+
+void Game::drawInGameBackgroundUI() {
+    //Draws the back button
+    buttonList[2]->draw(screenImg);
+
+    //Draws the action buttons from buttonList
+    for(int i = 4; i < buttonList.size(); i++){ // Assuming action buttons are from index 4 to 8
+        buttonList[i]->draw(screenImg);
+    }
+
+    // Draw Save Game button
+    if (saveGameButton) { // Ensure it's initialized
+         saveGameButton->draw(screenImg);
+    }
+
+    //Draws the tree to the screen
+    if (gameTree) {
+        gameTree->draw(screenImg);
+
+        // Draw fruits
+        const std::vector<Fruit>& fruits = gameTree->getFruitsList();
+        for (const Fruit& fruit : fruits) {
+            if (!fruit.collected) { // Only draw if not collected
+                cv::circle(*screenImg, fruit.position, static_cast<int>(fruit.radius), fruit.color, -1); // -1 for filled circle
+            }
+        }
+    }
+
+    // Display Player Stats
+    if (gamePlayer) {
+        // Display Fruit Counters
+        std::string fruitCounterText = "Fruits: R:" + std::to_string(redFruitsCollectedCount) +
+                                     " B:" + std::to_string(blueFruitsCollectedCount) +
+                                     " G:" + std::to_string(goldFruitsCollectedCount);
+        cv::putText(*screenImg, fruitCounterText, cv::Point(10, WINDOW_HEIGHT - 55), cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(0,0,0), 2);
+
+        std::string waterText = "Water: " + std::to_string(static_cast<int>(gamePlayer->getWaterSupply())) + "L";
+        std::string fertText = "Fertiliser: " + std::to_string(static_cast<int>(gamePlayer->getFertiliserSupply())) + "kg";
+        
+        cv::putText(*screenImg, waterText, cv::Point(10, WINDOW_HEIGHT - 35), cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(0,0,0), 2);
+        cv::putText(*screenImg, fertText, cv::Point(10, WINDOW_HEIGHT - 15), cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(0,0,0), 2);
+    }
+}
+
 void Game::drawScreen(){
     //Clears what was previously on the screen by drawing a vertical gradient
     // Define start and end colors for the gradient (Sky Blue to a deeper Steel Blue)
@@ -229,73 +279,27 @@ void Game::drawScreen(){
             int instructionStartY = 180; // Shifted down by 30px from original 150px
             int lineSpacing = 50;
 
-            putText(*screenImg, "Water and fertilise your tree so it grows", Point(instructionXPos, instructionStartY), instructionFont, instructionFontScale, Scalar(0, 0, 0), instructionThickness);
-            putText(*screenImg, "big and tall. Prune branches that you", Point(instructionXPos, instructionStartY + lineSpacing), instructionFont, instructionFontScale, Scalar(0, 0, 0), instructionThickness);
-            putText(*screenImg, "want to remove and reverse your previous", Point(instructionXPos, instructionStartY + 2 * lineSpacing), instructionFont, instructionFontScale, Scalar(0, 0, 0), instructionThickness);
-            putText(*screenImg, "actions if you make a mistake or don't", Point(instructionXPos, instructionStartY + 3 * lineSpacing), instructionFont, instructionFontScale, Scalar(0, 0, 0), instructionThickness);
-            putText(*screenImg, "like how the tree has grown. You get 2L", Point(instructionXPos, instructionStartY + 4 * lineSpacing), instructionFont, instructionFontScale, Scalar(0, 0, 0), instructionThickness);
-            putText(*screenImg, "water and 1kg fertiliser free every time", Point(instructionXPos, instructionStartY + 5 * lineSpacing), instructionFont, instructionFontScale, Scalar(0, 0, 0), instructionThickness);
-            putText(*screenImg, "you let your tree grow. Press ESC to quit", Point(instructionXPos, instructionStartY + 6 * lineSpacing), instructionFont, instructionFontScale, Scalar(0, 0, 0), instructionThickness);
+            std::vector<std::string> instructionTexts = {
+                "Water and fertilise your tree so it grows",
+                "big and tall. Prune branches that you",
+                "want to remove and reverse your previous",
+                "actions if you make a mistake or don't",
+                "like how the tree has grown. You get 2L",
+                "water and 1kg fertiliser free every time",
+                "you let your tree grow. Press ESC to quit"
+            };
+            drawTextLines(screenImg, instructionTexts, instructionXPos, instructionStartY, lineSpacing, instructionFont, instructionFontScale, Scalar(0, 0, 0), instructionThickness);
         } // End new scope block
         break;
     case PRUNING_ACTION:
-        // Cancel pruning button (buttonList[3]) is now drawn in IN_GAME case if currentState == PRUNING_ACTION
-        // Draw Save Game button in Pruning Action state
-        if (saveGameButton) { // Ensure it's initialized
-            saveGameButton->draw(screenImg);
-        }
-        // Note: IN_GAME case is below and will also draw relevant buttons.
-        // The structure of switch-case (fall-through from PRUNING_ACTION to IN_GAME for drawing)
-        // means IN_GAME drawing logic will also apply if not explicitly broken.
+        this->drawInGameBackgroundUI(); // Draws common elements including save button
+        buttonList[3]->draw(screenImg); // Draws the "Cancel" button for pruning
+        break; 
 
     case IN_GAME:
-        //Draws the back button
-        buttonList[2]->draw(screenImg);
-
-        //Draws the action buttons from buttonList
-        for(int i = 4; i < buttonList.size(); i++){
-            buttonList[i]->draw(screenImg);
-        }
-
-        // Draw Save Game button in In Game state
-        if (saveGameButton) { // Ensure it's initialized
-             saveGameButton->draw(screenImg);
-        }
-
-        //Draws the tree to the screen
-        gameTree->draw(screenImg);
-
-        // Draw fruits
-        if (gameTree) { // Ensure gameTree is not null
-            const std::vector<Fruit>& fruits = gameTree->getFruitsList();
-            for (const Fruit& fruit : fruits) {
-                if (!fruit.collected) { // Only draw if not collected
-                    cv::circle(*screenImg, fruit.position, static_cast<int>(fruit.radius), fruit.color, -1); // -1 for filled circle
-                    // Optional: Add a border to the fruit
-                    // cv::circle(*screenImg, fruit.position, static_cast<int>(fruit.radius), CV_RGB(0,0,0), 1); // Black border, 1px thick
-                }
-            }
-        }
-
-        // Display Player Stats
-        if (gamePlayer) {
-            // Display Fruit Counters (New consolidated and repositioned)
-            std::string fruitCounterText = "Fruits: R:" + std::to_string(redFruitsCollectedCount) +
-                                         " B:" + std::to_string(blueFruitsCollectedCount) +
-                                         " G:" + std::to_string(goldFruitsCollectedCount);
-            cv::putText(*screenImg, fruitCounterText, cv::Point(10, WINDOW_HEIGHT - 55), cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(0,0,0), 2);
-
-            std::string waterText = "Water: " + std::to_string(static_cast<int>(gamePlayer->getWaterSupply())) + "L";
-            std::string fertText = "Fertiliser: " + std::to_string(static_cast<int>(gamePlayer->getFertiliserSupply())) + "kg";
-            
-            cv::putText(*screenImg, waterText, cv::Point(10, WINDOW_HEIGHT - 35), cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(0,0,0), 2);
-            cv::putText(*screenImg, fertText, cv::Point(10, WINDOW_HEIGHT - 15), cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(0,0,0), 2);
-        }
-        
-        // If in PRUNING_ACTION state, draw the Cancel button on top of everything else drawn in IN_GAME.
-        if (currentState == PRUNING_ACTION) {
-            buttonList[3]->draw(screenImg); // Draws the "Cancel" button for pruning
-        }
+        this->drawInGameBackgroundUI();
+        // Specific IN_GAME elements not covered by drawInGameBackgroundUI (if any) would go here.
+        // Currently, drawInGameBackgroundUI covers all IN_GAME elements.
         break;
 
     case BERRIES_MENU:
@@ -319,18 +323,21 @@ void Game::drawScreen(){
             int lineHeight = 35; // Space between lines of text
 
             // Centering text lines, or using a fixed X like 100
-            std::string redInfo = "Red Fruit: Common (Approx. 70% spawn rate)";
-            std::string blueInfo = "Blue Fruit: Uncommon (Approx. 25% spawn rate)";
-            std::string goldInfo = "Gold Fruit: Rare (Approx. 5% spawn rate)";
+            std::vector<std::string> berryInfoTexts = {
+                "Red Fruit: Common (Approx. 70% spawn rate)",
+                "Blue Fruit: Uncommon (Approx. 25% spawn rate)",
+                "Gold Fruit: Rare (Approx. 5% spawn rate)"
+            };
 
-            cv::Size redTextSize = cv::getTextSize(redInfo, infoFont, infoFontScale, infoThickness, nullptr);
-            cv::Size blueTextSize = cv::getTextSize(blueInfo, infoFont, infoFontScale, infoThickness, nullptr);
-            cv::Size goldTextSize = cv::getTextSize(goldInfo, infoFont, infoFontScale, infoThickness, nullptr);
+            // Estimate max width for centering the block. This is a simplification.
+            // A more accurate way would be to iterate, getTextSize for each, and find max.
+            // For this refactor, let's assume the longest line is "Blue Fruit: Uncommon (Approx. 25% spawn rate)" or similar.
+            cv::Size approxMaxTextSize = cv::getTextSize(berryInfoTexts[1], infoFont, infoFontScale, infoThickness, nullptr);
+            int infoXPos = (WINDOW_WIDTH - approxMaxTextSize.width) / 2;
+            if (infoXPos < 0) infoXPos = 10; // Ensure it's not off-screen if text is too wide
 
-            cv::putText(*screenImg, redInfo, cv::Point((WINDOW_WIDTH - redTextSize.width) / 2, startY), infoFont, infoFontScale, infoColor, infoThickness);
-            cv::putText(*screenImg, blueInfo, cv::Point((WINDOW_WIDTH - blueTextSize.width) / 2, startY + lineHeight), infoFont, infoFontScale, infoColor, infoThickness);
-            cv::putText(*screenImg, goldInfo, cv::Point((WINDOW_WIDTH - goldTextSize.width) / 2, startY + 2 * lineHeight), infoFont, infoFontScale, infoColor, infoThickness);
-
+            drawTextLines(screenImg, berryInfoTexts, infoXPos, startY, lineHeight, infoFont, infoFontScale, infoColor, infoThickness);
+            
             // --- Draw Back Button ---
             // Assuming buttonList[2] is the "Back" button, as used in INSTRUCTION_MENU
             if (buttonList.size() > 2 && buttonList[2] != nullptr) {
@@ -357,32 +364,7 @@ void Game::drawScreen(){
             // However, the switch statement structure means only one case is executed.
 
             // Re-draw the IN_GAME state as background for the pop-up
-            // This is a simplified approach. A more robust solution might use a dedicated function.
-            buttonList[2]->draw(screenImg); // Back button
-            for(int i = 4; i < buttonList.size(); i++){ buttonList[i]->draw(screenImg); } // Action buttons
-            if (saveGameButton) { saveGameButton->draw(screenImg); }
-            if (gameTree) { 
-                gameTree->draw(screenImg); 
-                // Also draw fruits in the pop-up background
-                const std::vector<Fruit>& fruits = gameTree->getFruitsList();
-                for (const Fruit& fruit : fruits) {
-                    if (!fruit.collected) {
-                        cv::circle(*screenImg, fruit.position, static_cast<int>(fruit.radius), fruit.color, -1);
-                    }
-                }
-            }
-             if (gamePlayer) { // Also draw stats
-                // Display Fruit Counters (New consolidated and repositioned)
-                std::string fruitCounterText = "Fruits: R:" + std::to_string(redFruitsCollectedCount) +
-                                             " B:" + std::to_string(blueFruitsCollectedCount) +
-                                             " G:" + std::to_string(goldFruitsCollectedCount);
-                cv::putText(*screenImg, fruitCounterText, cv::Point(10, WINDOW_HEIGHT - 55), cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(0,0,0), 2);
-
-                std::string waterText = "Water: " + std::to_string(static_cast<int>(gamePlayer->getWaterSupply())) + "L";
-                std::string fertText = "Fertiliser: " + std::to_string(static_cast<int>(gamePlayer->getFertiliserSupply())) + "kg";
-                cv::putText(*screenImg, waterText, cv::Point(10, WINDOW_HEIGHT - 35), cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(0,0,0), 2);
-                cv::putText(*screenImg, fertText, cv::Point(10, WINDOW_HEIGHT - 15), cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(0,0,0), 2);
-            }
+            this->drawInGameBackgroundUI();
 
             // Draw a semi-transparent overlay
             cv::Mat overlay = screenImg->clone();
