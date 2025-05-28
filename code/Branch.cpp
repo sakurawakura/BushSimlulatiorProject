@@ -21,9 +21,6 @@
   // Starting up with a new branch... includes all of the above
 Branch::Branch(int branchIndex, int parentBranchIndex, float initialAngle, float initialLength, float initialWidth, float initialXPos, float initialYPos): index(branchIndex), parentIndex(parentBranchIndex), age(0), turnsWithoutWater(0), turnsWithoutNutrients(0), isAlive(true) 
 {
-    // generating branch leaves
-    hasLeaves = true; 
-    leafPositions.clear(); 
     cv::Size2f size = cv::Size2f(initialWidth, initialLength); 
 
     //finds centr of branch using base  (CHATGPT)
@@ -33,7 +30,6 @@ Branch::Branch(int branchIndex, int parentBranchIndex, float initialAngle, float
     Point centre = Point(xPos, yPos); //calc-ed center point stored
 
     branchRect = RotatedRect(centre, size, initialAngle);
-    generateLeaves(); // gengerates the small greeen leaves
 }
 
 // default const for branch
@@ -81,64 +77,6 @@ void Branch::resetTurnsWithoutNutrients() {
 // sets alive status of branch
 void Branch::setIsAlive(bool aliveStatus) {
     isAlive = aliveStatus;
-    if (!isAlive) {
-        hasLeaves = false; // if not alive no leaves
-        leafPositions.clear(); 
-    }
-}
-
-// leaf generation method
-void Branch::generateLeaves() {
-    if (!isAlive) { // if dead, no leafs and clear new ones
-        leafPositions.clear(); 
-        hasLeaves = false; 
-        return;
-    }
-    // make sure its less than max leafs
-    if (!hasLeaves || leafPositions.size() >= MAX_LEAVES_PER_BRANCH) { 
-        return;
-    }
-
-    // calcc how many new leaves to add
-    // make sure age is >0
-    int currentAge = std::max(0, age); 
-    int leavesToAddPotential = (currentAge / 2) + 1;
-    int newLeavesCount = std::min(MAX_LEAVES_PER_BRANCH - (int)leafPositions.size(), leavesToAddPotential);
-
-    if (newLeavesCount <= 0) {
-        return;
-    }
-        // this generates new leafs on the branches 
-    for (int i = 0; i < newLeavesCount; ++i) {
-        // Calculate base and tip coordinates of the branch
-        float angle_rad = branchRect.angle * (float)(M_PI / 180.0);
-        float half_len_sin_angle = 0.5f * branchRect.size.height * std::sin(angle_rad);
-        float half_len_cos_angle = 0.5f * branchRect.size.height * std::cos(angle_rad);
-
-        // tip of the branch 
-        float tip_x = branchRect.center.x + half_len_sin_angle;
-        float tip_y = branchRect.center.y - half_len_cos_angle;
-        // base of the branch
-        float base_x = branchRect.center.x - half_len_sin_angle;
-        float base_y = branchRect.center.y + half_len_cos_angle;
-
-        // random distance on branch centerlinee
-        float distFactor = (float)rand() / RAND_MAX;
-        // find leaf position 
-        float leaf_on_line_x = base_x + distFactor * (tip_x - base_x);
-        float leaf_on_line_y = base_y + distFactor * (tip_y - base_y);
-
-        // perpendicular offset of branch
-        // Offset can be 0.75 times the branch width on either side (width x 1.5 total range)
-        float offsetFactor = ((float)rand() / RAND_MAX - 0.5f) * branchRect.size.width * 1.5f;
-
-        // final leaf positionn
-        // Perpendicular vector to (sin(angle_rad), -cos(angle_rad)) is (cos(angle_rad), sin(angle_rad)) (CHATGPT)
-        float final_leaf_x = leaf_on_line_x + offsetFactor * std::cos(angle_rad);
-        float final_leaf_y = leaf_on_line_y + offsetFactor * std::sin(angle_rad);
-        
-        leafPositions.push_back(cv::Point2f(final_leaf_x, final_leaf_y));
-    }
 }
 
 int Branch::getIndex(){
@@ -233,8 +171,6 @@ void Branch::grow(float areaIncrease, float &widthIncrease, float &lengthIncreas
     //applying the growth 
     branchRect.size.width += widthIncrease;
     branchRect.size.height += lengthIncrease;
-
-    generateLeaves(); // generate new leafs after the turn
 }
 
 //decrement age of branchs
@@ -254,10 +190,6 @@ void Branch::modifySize(float widthChange, float lengthChange){
     // changes the variables
     branchRect.size.width += widthChange;
     branchRect.size.height += lengthChange;
-
-    // regen leaffs
-    leafPositions.clear();
-    generateLeaves();
 }
 
 // --------------------------- visual implementation section
@@ -310,13 +242,6 @@ void Branch::draw(Mat* img){
     } else {
         // draw living branch with age based color
         fillConvexPoly(*img, vertices, CV_RGB(r, g, b));
-
-        // draw leaves for bracnhes
-        if (hasLeaves) { 
-            for (const auto& leaf_pos : leafPositions) {
-                cv::circle(*img, leaf_pos, 3, CV_RGB(0, 150, 0), -1); // small green circls
-            }
-        }
     }
 }
 
@@ -368,12 +293,6 @@ void Branch::saveToStream(std::ostream& out) const {
         << " num_children " << childIndices.size();
     for (int childIdx : childIndices) {
         out << " " << childIdx; // child indices (space seprated)
-    }
-    // leaf data
-    out << " has_leaves " << hasLeaves;
-    out << " num_leaves " << leafPositions.size();
-    for (const auto& pos : leafPositions) {
-        out << " " << pos.x << " " << pos.y;
     }
     // life data
     out << " turns_water " << turnsWithoutWater;         // Turns without water
@@ -481,8 +400,7 @@ Branch Branch::loadFromStream(std::istream& in) {
                 iss >> loadedBranch.isAlive;
                  // If loaded as dead, ensure leaf state is consistent.
                 if (!loadedBranch.isAlive) {
-                    loadedBranch.hasLeaves = false;
-                    loadedBranch.leafPositions.clear();
+                    // loadedBranch.hasLeaves and loadedBranch.leafPositions are removed
                 }
             }
         }
@@ -495,75 +413,9 @@ Branch Branch::loadFromStream(std::istream& in) {
         loadedBranch.isAlive = true;            // Default for old saves.
     }
 
-    // Robustly load leaf data, compatible with older save files.
-    // This block attempts to read leaf fields; if not present (old save),
-    // defaults are applied based on whether the branch is alive.
-    std::string potential_leaf_keyword;
-    std::string keyword_leaf_check; // Used inside the block for "num_leaves" check
-    long original_pos = iss.tellg(); // Remember current position
-
-    if (iss >> potential_leaf_keyword && potential_leaf_keyword == "has_leaves") {
-        iss >> loadedBranch.hasLeaves; // This hasLeaves might be overwritten if branch is dead (from sustenance block)
-        if (!loadedBranch.isAlive) { // If branch is dead, ensure hasLeaves is false, regardless of file value
-             loadedBranch.hasLeaves = false;
-        }
-
-        if (!(iss >> keyword_leaf_check) || keyword_leaf_check != "num_leaves") { 
-            // Error or unexpected keyword after has_leaves, assume old format or corruption for leaf part
-            std::cerr << "Parse Error: Branch expected 'num_leaves' after 'has_leaves' for branch " << loadedBranch.index 
-                      << ". Got: " << keyword_leaf_check << ". Defaulting leaves." << std::endl;
-            iss.clear(); // Clear potential error flags
-            iss.seekg(original_pos); // Reset to before "has_leaves" attempt
-            // If isAlive is true, default hasLeaves to true, else false. leafPositions already cleared if dead.
-            loadedBranch.hasLeaves = loadedBranch.isAlive; 
-            if (loadedBranch.isAlive) loadedBranch.leafPositions.clear(); // Clear for living old saves too
-            else loadedBranch.leafPositions.clear(); // Already done if !isAlive, but for safety.
-        } else {
-            int num_leaves = 0;
-            iss >> num_leaves;
-            if (num_leaves < 0) { // Basic sanity check
-                std::cerr << "Warning: Negative num_leaves (" << num_leaves << ") for branch " << loadedBranch.index << ". Setting to 0." << std::endl;
-                num_leaves = 0; 
-            }
-            // Cap num_leaves to prevent excessive memory allocation if save file is malformed
-            if (num_leaves > Branch::MAX_LEAVES_PER_BRANCH * 10) { // Arbitrary sanity cap, 10x max per branch
-                 std::cerr << "Warning: Excessive num_leaves (" << num_leaves << ") for branch " << loadedBranch.index 
-                           << ". Capping to " << Branch::MAX_LEAVES_PER_BRANCH * 10 << "." << std::endl;
-                 num_leaves = Branch::MAX_LEAVES_PER_BRANCH * 10;
-            }
-
-            loadedBranch.leafPositions.resize(num_leaves); // num_leaves could be 0
-            if (!loadedBranch.isAlive) { // If dead, leaves should be cleared regardless of file content
-                loadedBranch.leafPositions.clear();
-                num_leaves = 0; // Don't try to read leaf positions
-            }
-
-            for (int k = 0; k < num_leaves; ++k) { // Loop executes 0 times if num_leaves is 0
-                if (!(iss >> loadedBranch.leafPositions[k].x >> loadedBranch.leafPositions[k].y)) {
-                    std::cerr << "Error reading leaf position " << k << " for branch " << loadedBranch.index << ". Clearing remaining leaves." << std::endl;
-                    loadedBranch.leafPositions.clear(); // Clear all leaves due to error
-                    break; 
-                }
-            }
-        }
-    } else {
-        // Keyword "has_leaves" not found, or stream ended before it. Assume old save file format for leaves.
-        iss.clear(); // Clear fail bits if any
-        iss.seekg(original_pos); // Reset stream position
-        loadedBranch.hasLeaves = loadedBranch.isAlive; // Default for old saves (true if alive, false if dead by now)
-        loadedBranch.leafPositions.clear(); // No leaf data to load for old format
-    }
-    
-    // Final check for consistency if branch is not alive
-    if (!loadedBranch.isAlive) {
-        loadedBranch.hasLeaves = false;
-        loadedBranch.leafPositions.clear();
-    }
-    
-    // Check for any stream errors after trying to read all parts (including optional leaf data)
+    // Check for any stream errors after trying to read all parts
     if (iss.fail() && !iss.eof()) { // eof is fine if we read everything
-         std::cerr << "Error reading branch data for index " << p_idx << " (potentially after leaves). Stream state: " << iss.rdstate() << std::endl;
-        
+         std::cerr << "Error reading branch data for index " << p_idx << ". Stream state: " << iss.rdstate() << std::endl;
     }
 
     return loadedBranch;

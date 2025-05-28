@@ -20,7 +20,6 @@ using namespace cv;
 // Handles its own geometry, growth, leaf generation, and lifecycle (sustenance).
 class Branch : public Printable{
     public:
-        static const int MAX_LEAVES_PER_BRANCH = 10; ///< Maximum number of leaves a branch can have.
         static const int MAX_TURNS_WITHOUT_SUSTENANCE = 5; ///< Maximum turns a branch can survive without water or nutrients before dying.
 
         //Constructors
@@ -91,17 +90,10 @@ class Branch : public Printable{
         //Number of times the branch has been allowed to grow
         int age;
 
-        // Leaf-related members
-        std::vector<cv::Point2f> leafPositions; ///< Stores the 2D positions of leaves on this branch.
-        bool hasLeaves;                         ///< Flag indicating if the branch currently has leaves (can be false even if alive, e.g. before first leaf generation).
-
         // Sustenance and lifecycle members
         int turnsWithoutWater;      ///< Counter for consecutive turns the branch has not received water.
         int turnsWithoutNutrients;  ///< Counter for consecutive turns the branch has not received nutrients.
         bool isAlive;               ///< Flag indicating if the branch is alive or dead.
-
-        // Leaf generation method
-        void generateLeaves();      ///< Generates or regenerates leaf positions for the branch.
 };
 
 #endif
